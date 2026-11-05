@@ -1,7 +1,9 @@
 node_modules/
 dist/
+dist-preview/
 data/
 .env
+.env.*
+!.env.example
+outputs/
 *.log
-dist-preview/
-__pycache__/

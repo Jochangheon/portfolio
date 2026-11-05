@@ -1,3 +1,4 @@
+export type VersionReference = { recordId: string; version: number; role: string; note: string; title?: string };
 export type NodeData = {
   id: string;
   label: string;
@@ -40,12 +41,14 @@ export type RecordData = {
     images: boolean;
     downloads: boolean;
   };
+  relations?: VersionReference[];
   assets: string[];
   nodes: NodeData[];
   edges: EdgeData[];
   files: NodeData[];
   fileEdges: EdgeData[];
   runs: {
+    references?: VersionReference[];
     date: string;
     skillVersion: string;
     harnessVersion: string;
@@ -77,6 +80,7 @@ export const blank = (): RecordData => ({
     images: false,
     downloads: false,
   },
+  relations: [],
   assets: [],
   nodes: [],
   edges: [],

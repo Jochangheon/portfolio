@@ -239,3 +239,55 @@ test("hidden description and graph never appear; malformed relationships rejecte
     f.close();
   }
 });
+
+test("preview equals public projection; private fields, image bytes and downloads have separate gates", async()=>{
+ const f=setup();try{
+  const up=await f.admin("post","/upload").set("Content-Type","application/octet-stream").set("X-Filename","result.png").send(Buffer.from([137,80,78,71,13,10,26,10,0]));
+  assert.equal(up.status,200);const aid=up.body.id;
+  const r={...example(),id:"",project:"PRIVATE-PROJECT",summary:"PRIVATE-SUMMARY",secret:"PRIVATE-EXTRA",visibility:{description:false,graph:false,images:true,downloads:false},assets:[aid]};
+  const saved=(await f.admin("post","/records").send(r)).body;
+  assert.equal((await request(f.app).get("/api/admin/preview/"+saved.id)).status,401);
+  assert.equal((await request(f.app).get("/api/images/"+aid)).status,404);
+  const preview=(await f.admin("get","/preview/"+saved.id)).body;
+  assert.equal(preview.project,"");assert.equal(preview.secret,undefined);
+  await f.admin("post","/publish/"+saved.id);
+  assert.deepEqual((await request(f.app).get("/api/records/"+saved.id)).body,preview);
+  const image=await request(f.app).get("/api/images/"+aid);assert.equal(image.status,200);assert.match(image.headers["content-disposition"],/^inline/);
+  assert.equal((await request(f.app).get("/api/files/"+aid)).status,404);
+  await f.admin("post","/unpublish/"+saved.id);assert.equal((await request(f.app).get("/api/images/"+aid)).status,404);
+ }finally{f.close();}
+});
+test("record relationships pin real versions, preserve history and hide private targets",async()=>{
+ const f=setup();try{
+  const skill=(await f.admin("post","/records").send({...blank(),title:"스킬 v1"})).body;
+  await f.admin("post","/publish/"+skill.id);
+  const ref={recordId:skill.id,version:1,role:"스킬",note:"검증에 사용"};
+  const project={...example(),id:"",title:"실행 기록",relations:[ref],runs:[{date:"2026-11-05",skillVersion:"v1",harnessVersion:"해당 없음",evidence:"실행 결과 검토",result:"검토 완료",references:[ref]}]};
+  const saved=(await f.admin("post","/records").send(project)).body;
+  await f.admin("post","/publish/"+saved.id);
+  await f.admin("post","/records").send({...skill,title:"스킬 v2",reason:"수정"});
+  await f.admin("post","/publish/"+skill.id);
+  let pub=(await request(f.app).get("/api/records/"+saved.id)).body;
+  assert.equal(pub.runs[0].references[0].version,1);
+  assert.equal((await f.admin("get","/versions/"+skill.id)).body[1].content.title,"스킬 v1");
+  assert.equal((await f.admin("post","/records").send({...project,relations:[{...ref,version:99}]})).status,400);
+  assert.equal((await f.admin("post","/records").send({...project,runs:[{...project.runs[0],references:[]}]})).status,400);
+  await f.admin("post","/unpublish/"+skill.id);
+  pub=(await request(f.app).get("/api/records/"+saved.id)).body;
+  assert.deepEqual(pub.relations,[]);assert.deepEqual(pub.runs[0].references,[]);
+  const backup=(await f.admin("get","/export")).body;
+  const imported=await f.admin("post","/import").send(backup);assert.equal(imported.status,200);
+  const copies=(await f.admin("get","/records")).body.filter((r:any)=>![skill.id,saved.id].includes(r.id));
+  const copy=copies.find((r:any)=>r.title==="실행 기록");const skillCopy=copies.find((r:any)=>r.title==="스킬 v2");
+  assert.equal(copy.relations[0].recordId,skillCopy.id);assert.equal(copy.runs[0].references[0].recordId,skillCopy.id);assert.equal(copy.published,false);
+ }finally{f.close();}
+});
+test("malformed backup snapshots and nonboolean public text are rejected before writes",async()=>{
+ const f=setup();try{
+  const r=example();r.id="x";r.nodes[0].publicText="false" as any;
+  assert.equal((await f.admin("post","/records").send(r)).status,400);
+  const before=(await f.admin("get","/records")).body.length;
+  const bad=await f.admin("post","/import").send({records:[{...blank(),id:"x",title:"copy"}],versions:[{record_id:"x",content:"{"}]});
+  assert.equal(bad.status,400);assert.equal((await f.admin("get","/records")).body.length,before);
+ }finally{f.close();}
+});

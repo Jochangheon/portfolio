@@ -1,0 +1,20 @@
+[Unit]
+Description=Cho Changheon portfolio
+After=network.target
+[Service]
+Type=simple
+User=portfolio-ai
+Group=portfolio-ai
+WorkingDirectory=/srv/portfolio-ai-records/source
+EnvironmentFile=/etc/portfolio-ai-records/app.env
+ExecStart=/srv/portfolio-ai-records/runtime/node-v24.22.2-linux-x64/bin/node server/index.ts
+Restart=on-failure
+RestartSec=3
+UMask=0077
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/srv/portfolio-ai-records/data
+[Install]
+WantedBy=multi-user.target

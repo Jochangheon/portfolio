@@ -1,0 +1,5 @@
+[Unit]
+Description=Renew portfolio IP TLS certificate
+[Service]
+Type=oneshot
+ExecStart=/srv/portfolio-ai-records/certbot/bin/certbot renew --config-dir /srv/portfolio-ai-records/tls --work-dir /srv/portfolio-ai-records/tls-work --logs-dir /srv/portfolio-ai-records/tls-logs --deploy-hook "/usr/sbin/nginx -t && /usr/bin/systemctl reload nginx" --quiet

@@ -9,12 +9,12 @@
   "scripts": {
     "dev": "node --env-file-if-exists=.env --import tsx --watch server/index.ts",
     "build": "tsc --noEmit && vite build",
-    "start": "NODE_ENV=production node --env-file-if-exists=.env server/index.ts",
+    "start": "node --env-file-if-exists=.env scripts/start.mjs",
     "test": "tsx --test tests/*.test.ts",
     "test:browser": "node --import tsx tests/browser.ts",
     "build:preview": "vite build --config vite.preview.config.ts && node scripts/prepare-preview.mjs",
     "test:frontend": "node --import tsx tests/frontend.browser.ts",
-    "preview": "npm run build:preview && vite preview --config vite.preview.config.ts --host 0.0.0.0 --port 4173 --strictPort",
+    "preview": "npm run build:preview && vite preview --config vite.preview.config.ts --host 127.0.0.1 --port 4173 --strictPort",
     "build:site": "npm run build:preview && node scripts/export-site.mjs"
   },
   "dependencies": {

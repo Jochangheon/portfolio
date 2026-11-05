@@ -5,6 +5,9 @@ import { join, extname, posix } from "node:path";
 import AdmZip from "adm-zip";
 import { blank, type RecordData } from "../src/model.ts";
 import type { Store } from "./store.ts";
+import { hashPassword, verifyPassword } from "./password.ts";
+import { publicRecord } from "../src/projection.ts";
+import type { VersionReference } from "../src/model.ts";
 const MAX = 10 * 1024 * 1024;
 const textExt = new Set([
   ".md",
@@ -25,9 +28,18 @@ const textExt = new Set([
   ".ini",
   ".xml",
 ]);
+function validReferences(refs: any): refs is VersionReference[] {
+ return Array.isArray(refs) && refs.length<=100 && refs.every(x=>x &&
+  typeof x.recordId==="string" && /^[a-zA-Z0-9_-]{1,128}$/.test(x.recordId) &&
+  Number.isInteger(x.version) && x.version>0 &&
+  ["스킬","하네스","관련 실험","결과물"].includes(x.role) &&
+  typeof x.note==="string" && x.note.length<=5000);
+}
 function valid(r: any): r is RecordData {
   return (
     r &&
+    typeof r.id === "string" && (r.id === "" || /^[a-zA-Z0-9_-]{1,128}$/.test(r.id)) &&
+    (r.relations === undefined || validReferences(r.relations)) &&
     typeof r.title === "string" &&
     r.title.trim().length > 0 &&
     r.title.length <= 180 &&
@@ -65,7 +77,8 @@ function valid(r: any): r is RecordData {
               (k) => typeof n[k] === "string",
             ) &&
             ["파일에 명시", "작성자 확인", "추정"].includes(n.evidence) &&
-            (n.text === undefined || typeof n.text === "string"),
+            (n.publicText === undefined || typeof n.publicText === "boolean") &&
+            (n.text === undefined || (typeof n.text === "string" && n.text.length <= 2000000)),
         ) && new Set(ns.map((n: any) => n.id)).size === ns.length,
     ) &&
     [
@@ -84,58 +97,26 @@ function valid(r: any): r is RecordData {
     ) &&
     r.runs.every(
       (x: any) =>
-        x &&
+        x && (x.references === undefined || validReferences(x.references)) &&
         ["date", "skillVersion", "harnessVersion", "evidence", "result"].every(
           (k) => typeof x[k] === "string" && x[k].trim(),
         ),
     )
   );
 }
-function publicRecord(r: RecordData) {
-  const p = structuredClone(r);
-  if (!p.visibility.description)
-    for (const k of [
-      "summary",
-      "problem",
-      "humanRole",
-      "aiRole",
-      "design",
-      "validation",
-      "limits",
-      "links",
-      "related",
-      "source",
-    ] as const)
-      p[k] = "";
-  if (!p.visibility.graph) {
-    p.nodes = [];
-    p.edges = [];
-    p.files = [];
-    p.fileEdges = [];
-    p.runs = [];
-  }
-  p.files = p.files.map((f) => ({
-    ...f,
-    text: f.publicText ? f.text : undefined,
-  }));
-  p.nodes = p.nodes.map((f) => ({
-    ...f,
-    text: f.publicText ? f.text : undefined,
-  }));
-  p.reason = "";
-  return p;
-}
 export function createApp(
   store: Store,
   opts: {
     origin?: string;
     authenticate?: (req: express.Request) => boolean;
+    passwordHash?: string;
   } = {},
 ) {
   const app = express(),
     db = store.db,
     origin = opts.origin || process.env.APP_URL || "http://localhost:3000";
   app.disable("x-powered-by");
+  app.set("trust proxy", "loopback");
   app.use((req, res, next) => {
     res.set({
       "X-Content-Type-Options": "nosniff",
@@ -167,9 +148,14 @@ export function createApp(
       return res.status(403).json({ error: "요청 출처 확인 실패" });
     next();
   });
+  const passwordHash=()=>{
+    const row:any=db.prepare("SELECT content FROM settings WHERE id=2").get();
+    return row?.content || opts.passwordHash || process.env.ADMIN_PASSWORD_HASH;
+  };
   app.get("/api/session", (req, res) =>
     res.json({
       admin: authenticated(req),
+      passwordConfigured: !!passwordHash(),
       configured: !!(
         process.env.GITHUB_CLIENT_ID &&
         process.env.GITHUB_CLIENT_SECRET &&
@@ -262,7 +248,38 @@ export function createApp(
     res.clearCookie("session");
     res.json({ ok: true });
   });
+  app.post("/api/login", express.json({limit:"2kb"}), (req,res)=>{
+    if(req.headers.origin!==origin || req.headers["x-requested-with"]!=="portfolio")
+      return res.status(403).json({error:"요청 출처 확인 실패"});
+    const encoded=passwordHash();
+    if(!encoded)return res.status(503).json({error:"관리자 비밀번호가 설정되지 않았습니다."});
+    const now=Date.now(), key=req.ip || "unknown", windowStart=now-15*60*1000;
+    db.prepare("DELETE FROM login_attempts WHERE created<?").run(windowStart);
+    const count:any=db.prepare("SELECT COUNT(*) AS n FROM login_attempts WHERE ip=?").get(key);
+    const total:any=db.prepare("SELECT COUNT(*) AS n FROM login_attempts").get();
+    if(count.n>=5 || total.n>=100){res.set("Retry-After","900");return res.status(429).json({error:"로그인 시도가 많습니다. 15분 뒤 다시 시도하세요."});}
+    db.prepare("INSERT INTO login_attempts(ip,created) VALUES(?,?)").run(key,now);
+    if(!verifyPassword(req.body?.password,encoded))return res.status(401).json({error:"비밀번호를 확인하세요."});
+    db.prepare("DELETE FROM login_attempts WHERE ip=?").run(key);
+    db.prepare("DELETE FROM sessions WHERE expires<=?").run(now);
+    const sid=randomBytes(32).toString("hex");
+    db.prepare("INSERT INTO sessions VALUES(?,?)").run(sid,now+8*3600000);
+    res.cookie("session",sid,{httpOnly:true,sameSite:"lax",secure:origin.startsWith("https:"),maxAge:8*3600000,path:"/"});
+    res.json({ok:true});
+  });
   app.use(express.json({ limit: "64mb" }));
+  app.post("/api/admin/password",(req,res)=>{
+    const current=passwordHash();
+    if(!current || !verifyPassword(req.body?.currentPassword,current))
+      return res.status(400).json({error:"현재 비밀번호를 확인하세요."});
+    const next=req.body?.newPassword;
+    if(typeof next!=="string" || next.length<12 || next.length>256)
+      return res.status(400).json({error:"새 비밀번호는 12~256자로 입력하세요."});
+    db.prepare("INSERT INTO settings VALUES(2,?) ON CONFLICT(id) DO UPDATE SET content=excluded.content").run(hashPassword(next));
+    db.prepare("DELETE FROM sessions").run();
+    res.clearCookie("session",{path:"/"});
+    res.json({ok:true});
+  });
   const assetsFor = (r: RecordData) =>
     r.assets
       .map((id) =>
@@ -274,9 +291,25 @@ export function createApp(
           (r.visibility.downloads ||
             (r.visibility.images && a.mime.startsWith("image/"))),
       );
+  const resolveRefs = (refs: VersionReference[] = []) => refs.flatMap(ref=>{
+    const target=store.get(ref.recordId);
+    return target ? [{...ref,title:target.title}] : [];
+  });
+  const present = (r: RecordData) => {
+    const p=publicRecord(r);
+    p.relations=resolveRefs(p.relations);
+    p.runs=p.runs.map(run=>({...run,references:resolveRefs(run.references)}));
+    return {...p,assets:assetsFor(r)};
+  };
+  const referencesExist = (r: RecordData) =>
+    [...(r.relations || []),...r.runs.flatMap(x=>x.references||[])].every(ref=>
+      !!db.prepare("SELECT id FROM versions WHERE record_id=? AND number=?").get(ref.recordId,ref.version)
+    );
+  const confirmedRuns = (r: RecordData) => r.runs.every(run=>run.references?.length &&
+    run.references.every(ref=>["스킬","하네스"].includes(ref.role)));
   app.get("/api/records", (_req, res) =>
     res.json(
-      store.list().map((r) => ({ ...publicRecord(r), assets: assetsFor(r) })),
+      store.list().map(present),
     ),
   );
   app.get("/api/records/:id", (req, res) => {
@@ -285,7 +318,7 @@ export function createApp(
       .status(r ? 200 : 404)
       .json(
         r
-          ? { ...publicRecord(r), assets: assetsFor(r) }
+          ? present(r)
           : { error: "기록을 찾을 수 없습니다." },
       );
   });
@@ -320,6 +353,10 @@ export function createApp(
     res.json(db.prepare("SELECT id,name,mime,size FROM assets").all()),
   );
   app.get("/api/admin/records", (_req, res) => res.json(store.list(true)));
+  app.get("/api/admin/preview/:id", (req,res)=>{
+    const r=store.get(req.params.id,true);
+    res.status(r?200:404).json(r?present(r):{error:"기록을 찾을 수 없습니다."});
+  });
   app.post("/api/admin/records", (req, res) => {
     if (!valid(req.body))
       return res.status(400).json({ error: "기록 필드와 관계를 확인하세요." });
@@ -329,7 +366,13 @@ export function createApp(
       )
     )
       return res.status(400).json({ error: "첨부파일이 존재하지 않습니다." });
-    res.json(store.save({ ...req.body, id: req.body.id || randomUUID() }));
+    if (!referencesExist(req.body))
+      return res.status(400).json({error:"연결한 게시 버전이 존재하지 않습니다."});
+    if (!confirmedRuns(req.body))
+      return res.status(400).json({error:"실행 기록마다 실제 사용한 스킬·하네스의 게시 버전을 연결하세요."});
+    const record = Object.fromEntries(Object.keys(blank()).map(k=>[k,req.body[k] ?? (blank() as any)[k]])) as RecordData;
+    record.id ||= randomUUID();
+    res.json(store.save(record));
   });
   app.get("/api/admin/versions/:id", (req, res) =>
     res.json(
@@ -344,6 +387,8 @@ export function createApp(
   app.post("/api/admin/publish/:id", (req, res) => {
     const r = store.get(req.params.id, true);
     if (!r) return res.sendStatus(404);
+    if (!valid(r) || !referencesExist(r) || !confirmedRuns(r))
+      return res.status(400).json({error:"기록과 실행 당시 버전 연결을 확인하세요."});
     if (!r.reason.trim())
       return res.status(400).json({ error: "변경 이유를 입력하세요." });
     db.exec("BEGIN IMMEDIATE");
@@ -378,30 +423,21 @@ export function createApp(
     );
     res.json({ ok: true });
   });
-  app.get("/api/files/:id", (req, res) => {
-    const a: any = db
-      .prepare("SELECT * FROM assets WHERE id=?")
-      .get(req.params.id);
-    if (!a) return res.sendStatus(404);
-    if (
-      !authenticated(req) &&
-      !store
-        .list()
-        .some(
-          (r) =>
-            r.assets.includes(a.id) &&
-            (r.visibility.downloads ||
-              (r.visibility.images && a.mime.startsWith("image/"))),
-        )
-    )
+  const fileResponse = (image: boolean): express.RequestHandler => (req,res) => {
+    const id=typeof req.params.id==="string"?req.params.id:"";
+    const a:any=db.prepare("SELECT * FROM assets WHERE id=?").get(id);
+    if(!a || (image && !["image/png","image/jpeg","image/webp"].includes(a.mime))) return res.sendStatus(404);
+    if(!authenticated(req) && !store.list().some(r=>r.assets.includes(a.id) && (image?r.visibility.images:r.visibility.downloads)))
       return res.sendStatus(404);
     res.set({
-      "Content-Type": a.mime,
-      "Content-Disposition": `attachment; filename*=UTF-8''${encodeURIComponent(a.name)}`,
-      "Content-Security-Policy": "default-src 'none'; sandbox",
+      "Content-Type":a.mime,
+      "Content-Disposition":(image?"inline":"attachment")+"; filename*=UTF-8''"+encodeURIComponent(a.name),
+      "Content-Security-Policy":"default-src 'none'; sandbox"
     });
-    res.send(readFileSync(join(store.dir, "files", a.id)));
-  });
+    res.send(readFileSync(join(store.dir,"files",a.id)));
+  };
+  app.get("/api/files/:id",fileResponse(false));
+  app.get("/api/images/:id",fileResponse(true));
   app.post(
     "/api/admin/upload",
     express.raw({ type: "application/octet-stream", limit: MAX }),
@@ -582,6 +618,11 @@ export function createApp(
       versions.length > 2000
     )
       return res.sendStatus(400);
+    try { for(const v of versions) { if(!v || typeof v.content!=="string") throw Error(); JSON.parse(v.content); } }
+    catch { return res.status(400).json({error:"버전 스냅샷 JSON이 올바르지 않습니다."}); }
+    if(new Set(assets.map((a:any)=>a?.id)).size!==assets.length ||
+       new Set(versions.map((v:any)=>v.record_id+":"+v.number)).size!==versions.length)
+      return res.status(400).json({error:"중복된 첨부 또는 버전입니다."});
     const assetMap = new Map<string, string>(),
       recordMap = new Map<string, string>();
     for (const r of records) recordMap.set(r.id, randomUUID());
@@ -634,9 +675,12 @@ export function createApp(
         JSON.stringify({ method: "백업에서 복원 · 형식 재검토 필요" }),
       );
     }
+    const remapRefs=(refs:VersionReference[]=[])=>refs.filter(x=>recordMap.has(x.recordId)).map(x=>({...x,recordId:recordMap.get(x.recordId)!}));
     const remap = (r: RecordData, id: string) => ({
       ...r,
       id,
+      relations:remapRefs(r.relations),
+      runs:r.runs.map(x=>({...x,references:remapRefs(x.references)})),
       assets: r.assets
         .map((x) => assetMap.get(x))
         .filter((x): x is string => !!x),

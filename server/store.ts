@@ -11,6 +11,8 @@ export function createStore(dir: string) {
  CREATE TABLE IF NOT EXISTS versions(id TEXT PRIMARY KEY,record_id TEXT NOT NULL,number INTEGER NOT NULL,created TEXT NOT NULL,reason TEXT NOT NULL,content TEXT NOT NULL);
  CREATE TABLE IF NOT EXISTS assets(id TEXT PRIMARY KEY,name TEXT NOT NULL,mime TEXT NOT NULL,size INTEGER NOT NULL,analysis TEXT NOT NULL);
  CREATE TABLE IF NOT EXISTS sessions(id TEXT PRIMARY KEY,expires INTEGER NOT NULL);
+ CREATE TABLE IF NOT EXISTS login_attempts(ip TEXT NOT NULL,created INTEGER NOT NULL);
+ CREATE INDEX IF NOT EXISTS login_attempts_ip ON login_attempts(ip);
  CREATE TABLE IF NOT EXISTS settings(id INTEGER PRIMARY KEY,content TEXT NOT NULL);`);
   return {
     db,

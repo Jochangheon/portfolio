@@ -1,11 +1,12 @@
 import { chromium } from "@playwright/test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { randomBytes } from "node:crypto";
 import { createStore } from "../server/store.ts";
+mkdirSync("outputs",{recursive:true});
 const dir = mkdtempSync(join(tmpdir(), "portfolio-browser-"));
 const store = createStore(dir);
 const sid = randomBytes(32).toString("hex");
@@ -32,7 +33,7 @@ try {
     await new Promise((r) => setTimeout(r, 100));
   }
   browser = await chromium.launch({
-    executablePath: process.env.CHROMIUM_PATH || "/usr/bin/chromium",
+    ...(process.env.CHROMIUM_PATH ? {executablePath:process.env.CHROMIUM_PATH} : {}),
     headless: true,
     args: ["--no-sandbox"],
   });
@@ -42,8 +43,8 @@ try {
   page.on("pageerror", (e: Error) => errors.push(e.message));
   await page.goto("http://localhost:3101");
   await page.getByRole("heading", { name: /AI와 함께/ }).waitFor();
-  await page.screenshot({ path: "/tmp/portfolio-desktop.png", fullPage: true });
-  await page.getByRole("button", { name: /기능 예시/ }).click();
+  await page.screenshot({ path: "outputs/portfolio-desktop.png", fullPage: true });
+  await page.getByRole("link", { name: /기능 예시/ }).click();
   await page.getByRole("button", { name: /01.*이벤트 정의서/ }).click();
   await page
     .getByRole("heading", { name: "이벤트 정의서", exact: true })
@@ -61,6 +62,8 @@ try {
     },
   ]);
   await page.reload();
+  await page.getByRole("link",{name:"+ 새 기록",exact:true}).click();
+  assert.match(page.url(),/\/admin\/records\/new$/);
   await page.getByLabel("제목", { exact: true }).fill("브라우저 검증 기록");
   await page.getByRole("button", { name: "2. 자료" }).click();
   await page
@@ -77,18 +80,22 @@ try {
     .getByLabel("요약과 결과물")
     .fill("실제 브라우저에서 작성한 테스트 기록");
   await page.getByRole("button", { name: "6. 미리보기" }).click();
+  await page.getByText("공개 미리보기 · 아직 게시되지 않았습니다",{exact:true}).waitFor();
+  assert.match(page.url(),/\/admin\/records\/[^/]+\/preview$/);
+  await page.reload();
   await page.getByRole("button", { name: "이 내용으로 게시" }).click();
   await page.getByText("새 버전을 게시했습니다.", { exact: true }).waitFor();
   const anonymous = await browser.newContext();
   const visitor = await anonymous.newPage();
   await visitor.goto("http://localhost:3101");
   await visitor
-    .getByRole("button", { name: /브라우저 검증 기록/ })
+    .getByRole("link", { name: /브라우저 검증 기록/ })
     .first()
     .click();
   await visitor
     .getByRole("heading", { name: "브라우저 검증 기록", exact: true })
     .waitFor();
+  assert.match(visitor.url(),/\/records\/[^/]+$/);
   await page.getByRole("button", { name: "4. 설명" }).click();
   await page
     .getByLabel("제목", { exact: true })
@@ -103,14 +110,14 @@ try {
     .waitFor();
   await page.getByRole("button", { name: "버전 이력", exact: true }).click();
   await page.getByText(/v1 ·/).waitFor();
-  await page.screenshot({ path: "/tmp/portfolio-admin.png", fullPage: true });
+  await page.screenshot({ path: "outputs/portfolio-admin.png", fullPage: true });
   await page.getByRole("button", { name: "게시 중단" }).click();
   await page.getByText("비공개로 전환했습니다.", { exact: true }).waitFor();
   await visitor.goto("http://localhost:3101");
   await visitor.getByText("아직 첫 기록을 준비하고 있습니다.").waitFor();
   await visitor.setViewportSize({ width: 390, height: 844 });
   await visitor.screenshot({
-    path: "/tmp/portfolio-mobile.png",
+    path: "outputs/portfolio-mobile.png",
     fullPage: true,
   });
   assert.equal(
@@ -126,6 +133,6 @@ try {
 } finally {
   await browser?.close();
   server.kill();
-  await new Promise((r) => server.once("exit", r));
+  if(server.exitCode===null) await new Promise((r) => server.once("exit", r));
   rmSync(dir, { recursive: true, force: true });
 }

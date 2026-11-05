@@ -5,13 +5,14 @@ RUN npm ci
 COPY . .
 RUN npm run build
 FROM node:24-bookworm-slim
-ENV NODE_ENV=production PORT=3000 DATA_DIR=/data
+ENV NODE_ENV=production PORT=3000 HOST=0.0.0.0 DATA_DIR=/data
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci --omit=dev && mkdir /data && chown node:node /data
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/server ./server
-COPY --from=build /app/src/model.ts ./src/model.ts
+COPY --from=build /app/src/model.ts /app/src/projection.ts ./src/
+COPY --from=build /app/src/lib/routes.ts ./src/lib/routes.ts
 USER node
 EXPOSE 3000
 VOLUME ["/data"]
