@@ -42,15 +42,19 @@ try {
   const errors: string[] = [];
   page.on("pageerror", (e: Error) => errors.push(e.message));
   await page.goto("http://localhost:3101");
-  await page.getByRole("heading", { name: /AI와 함께/ }).waitFor();
+  await page.getByRole("heading", { name: /AI로 만든 웹사이트와/ }).waitFor();
   await page.screenshot({ path: "outputs/portfolio-desktop.png", fullPage: true });
-  await page.getByRole("link", { name: /기능 예시/ }).click();
-  await page.getByRole("button", { name: /01.*이벤트 정의서/ }).click();
+  assert.equal(await page.locator('a[href="/examples/workflow"]').count(),0);
+  await page.getByRole("link",{name:"이 사이트 소개",exact:true}).click();
+  await page.getByText("글이 어떻게 생겼는지 예시로 보기",{exact:true}).click();
+  await page.getByRole("link",{name:/설명용 예시 읽어보기/}).click();
+  await page.getByText("만드는 순서와 사용한 파일 자세히 보기",{exact:true}).click();
+  await page.getByRole("button", { name: /01.*긴 글 넣기/ }).click();
   await page
-    .getByRole("heading", { name: "이벤트 정의서", exact: true })
+    .getByRole("heading", { name: "긴 글 넣기", exact: true })
     .waitFor();
   await page.goto("http://localhost:3101/admin");
-  await page.getByRole("heading", { name: "기록을 이어가는 공간" }).waitFor();
+  await page.getByRole("heading", { name: "내 글을 쓰고 보관하는 곳" }).waitFor();
   await context.addCookies([
     {
       name: "session",
@@ -62,10 +66,10 @@ try {
     },
   ]);
   await page.reload();
-  await page.getByRole("link",{name:"+ 새 기록",exact:true}).click();
+  await page.getByRole("link",{name:"+ 새 글 쓰기",exact:true}).click();
   assert.match(page.url(),/\/admin\/records\/new$/);
   await page.getByLabel("제목", { exact: true }).fill("브라우저 검증 기록");
-  await page.getByRole("button", { name: "2. 자료" }).click();
+  await page.getByRole("button", { name: "2. 사진·파일" }).click();
   await page
     .locator("input[type=file]")
     .nth(1)
@@ -74,17 +78,17 @@ try {
       mimeType: "text/markdown",
       buffer: Buffer.from("# 테스트 원문"),
     });
-  await page.getByText("비공개 업로드 완료.", { exact: false }).waitFor();
-  await page.getByRole("button", { name: "4. 설명" }).click();
+  await page.getByText("파일을 나만 볼 수 있게 올렸습니다.", { exact: false }).waitFor();
+  await page.getByRole("button", { name: "4. 작업 이야기" }).click();
   await page
-    .getByLabel("요약과 결과물")
+    .getByLabel("무엇을 만들었고, 어디에 쓰나요?")
     .fill("실제 브라우저에서 작성한 테스트 기록");
-  await page.getByRole("button", { name: "6. 미리보기" }).click();
-  await page.getByText("공개 미리보기 · 아직 게시되지 않았습니다",{exact:true}).waitFor();
+  await page.getByRole("button", { name: "6. 마지막 확인" }).click();
+  await page.getByText("다른 사람에게 이렇게 보여요 · 아직 공개하지 않았습니다",{exact:true}).waitFor();
   assert.match(page.url(),/\/admin\/records\/[^/]+\/preview$/);
   await page.reload();
-  await page.getByRole("button", { name: "이 내용으로 게시" }).click();
-  await page.getByText("새 버전을 게시했습니다.", { exact: true }).waitFor();
+  await page.getByRole("button", { name: "이 내용 공개하기" }).click();
+  await page.getByText("이 내용을 공개했습니다.", { exact: true }).waitFor();
   const anonymous = await browser.newContext();
   const visitor = await anonymous.newPage();
   await visitor.goto("http://localhost:3101");
@@ -96,25 +100,25 @@ try {
     .getByRole("heading", { name: "브라우저 검증 기록", exact: true })
     .waitFor();
   assert.match(visitor.url(),/\/records\/[^/]+$/);
-  await page.getByRole("button", { name: "4. 설명" }).click();
+  await page.getByRole("button", { name: "4. 작업 이야기" }).click();
   await page
     .getByLabel("제목", { exact: true })
     .fill("아직 게시하지 않은 초안");
-  await page.getByRole("button", { name: "초안 저장", exact: true }).click();
+  await page.getByRole("button", { name: "나만 보이게 저장", exact: true }).click();
   await page
-    .getByText("초안을 서버에 저장했습니다.", { exact: true })
+    .getByText("나만 보는 글로 저장했습니다.", { exact: true })
     .waitFor();
   await visitor.reload();
   await visitor
     .getByRole("heading", { name: "브라우저 검증 기록", exact: true })
     .waitFor();
-  await page.getByRole("button", { name: "버전 이력", exact: true }).click();
-  await page.getByText(/v1 ·/).waitFor();
+  await page.getByRole("button", { name: "전에 공개했던 내용", exact: true }).click();
+  await page.getByText(/1번째 공개 ·/).waitFor();
   await page.screenshot({ path: "outputs/portfolio-admin.png", fullPage: true });
-  await page.getByRole("button", { name: "게시 중단" }).click();
-  await page.getByText("비공개로 전환했습니다.", { exact: true }).waitFor();
+  await page.getByRole("button", { name: "공개 멈추기" }).click();
+  await page.getByText("이제 이 글은 나만 볼 수 있습니다.", { exact: true }).waitFor();
   await visitor.goto("http://localhost:3101");
-  await visitor.getByText("아직 첫 기록을 준비하고 있습니다.").waitFor();
+  await visitor.getByText("공개할 작업을 정리하고 있어요.").waitFor();
   await visitor.setViewportSize({ width: 390, height: 844 });
   await visitor.screenshot({
     path: "outputs/portfolio-mobile.png",

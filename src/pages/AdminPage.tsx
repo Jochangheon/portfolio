@@ -7,7 +7,8 @@ import StructureEditor from "../components/StructureEditor";
 import VersionLinksEditor from "../components/VersionLinksEditor";
 import RelationshipsEditor from "../components/RelationshipsEditor";
 import IntegrationSettings from "../components/IntegrationSettings";
-import { labels } from "../components/fields";
+import {typeName} from "../copy";
+import { labels,hints } from "../components/fields";
 function PublicPreview({recordId}: {recordId: string}) {
  const [record,setRecord]=useState<any>(); const [error,setError]=useState("");
  useEffect(()=>{let active=true; api("/admin/preview/"+encodeURIComponent(recordId)).then(r=>{if(active)setRecord(r);}).catch(e=>{if(active)setError(e.message);});return()=>{active=false;};},[recordId]);
@@ -66,17 +67,17 @@ export default function Admin({recordId, mode}: {recordId?: string; mode: "index
     setR(d);
     history.replaceState({}, "", editorPath(d.id, step === 5));
     await refresh();
-    setMsg("초안을 서버에 저장했습니다.");
+    setMsg("나만 보는 글로 저장했습니다.");
     return d;
   }
   if (!session) return <p role="status">{msg || "인증 상태 확인 중…"}</p>;
   if (!session.admin)
     return (
       <section className="login panel">
-        <span className="eyebrow">관리자 전용</span>
-        <h1>기록을 이어가는 공간</h1>
+        <span className="eyebrow">나만 쓰는 공간</span>
+        <h1>내 글을 쓰고 보관하는 곳</h1>
         <p>
-          관리자 인증 후 초안과 원본 파일을 관리할 수 있습니다.
+          로그인하면 나만 보는 글을 저장하고, 준비된 글만 다른 사람에게 공개할 수 있어요.
         </p>
         {session.passwordConfigured && <form onSubmit={e=>{e.preventDefault();perform(async()=>{await api("/login","POST",{password});setPassword("");location.reload();});}}>
           <label>관리자 비밀번호<input type="password" autoComplete="current-password" required minLength={12} maxLength={256} value={password} onChange={e=>setPassword(e.target.value)}/></label>
@@ -101,8 +102,8 @@ export default function Admin({recordId, mode}: {recordId?: string; mode: "index
     <>
       <div className="section-title">
         <div>
-          <span className="eyebrow">WORKSPACE</span>
-          <h1>기록 관리</h1>
+          <span className="eyebrow">나만 쓰는 공간</span>
+          <h1>내 글 관리</h1>
         </div>
         <button
           onClick={() =>
@@ -120,19 +121,19 @@ export default function Admin({recordId, mode}: {recordId?: string; mode: "index
       </p>
       <div className="admin-layout">
         <aside>
-          <a className="button primary" href="/admin/records/new">+ 새 기록</a><a className="button" href="/admin/atlas">내 관계 지도 →</a>
+          <a className="button primary" href="/admin/records/new">+ 새 글 쓰기</a><a className="button" href="/admin/atlas">내 작업 연결 보기 →</a>
           {records.map(x => <a className="record-select" key={x.id} href={editorPath(x.id)} aria-current={r.id===x.id ? "page" : undefined}>
-            {x.title}<small>{x.published ? "게시됨 · 수정은 초안" : "비공개 초안"} / v{x.revision}</small>
+            {x.title}<small>{x.published ? "공개 중 · 수정한 내용은 나만 보여요" : "나만 보는 글"}{x.revision>0?" · "+x.revision+"번 공개":""}</small>
           </a>)}
           <a
             className="external"
             href="/api/admin/export"
             download="portfolio.json"
           >
-            JSON 백업 ↓
+            모든 글과 파일 보관본 내려받기 ↓
           </a>
           <label>
-            JSON / Markdown 가져오기
+            보관해 둔 글 가져오기 (JSON / Markdown)
             <input
               type="file"
               accept=".json,.md"
@@ -155,9 +156,9 @@ export default function Admin({recordId, mode}: {recordId?: string; mode: "index
             />
           </label>
         </aside>
-        {mode === "index" ? <section className="panel"><h2>내 작업을 기록하세요</h2><p>새 기록을 만들거나 왼쪽에서 기록을 선택하세요. 변경 사항은 초안에 저장되며 게시 전까지 기존 공개본이 유지됩니다.</p><a className="button primary" href="/admin/records/new">첫 기록 작성하기 →</a></section> : <div className="editor">
+        {mode === "index" ? <section className="panel"><h2>한 가지 작업부터 소개해 보세요.</h2><p>무엇을 만들었는지 적고 사진이나 파일을 붙여 보세요. 저장한 글은 나만 볼 수 있습니다. 마지막에 확인하고 공개하면 다른 사람도 읽을 수 있어요.</p><p>이미 공개한 글을 고쳐도, 다시 공개하기 전까지 방문자에게는 원래 글이 보입니다.</p><a className="button primary" href="/admin/records/new">새 글 쓰기 →</a></section> : <div className="editor">
           <nav className="steps" aria-label="등록 단계">
-            {["종류", "자료", "구조", "설명", "공개 범위", "미리보기"].map(
+            {["이름과 소개", "사진·파일", "만드는 방법", "작업 이야기", "공개할 내용", "마지막 확인"].map(
               (s, i) => (
                 <button
                   className={step === i ? "active" : ""}
@@ -174,7 +175,7 @@ export default function Admin({recordId, mode}: {recordId?: string; mode: "index
           </nav>
           {step === 0 && (
             <>
-              <h2>무엇을 기록하나요?</h2>
+              <h2>무엇을 만들었나요?</h2><p>어려운 이름보다 하는 일을 적어 주세요. “글을 세 줄로 줄여 주는 도구”처럼요.</p>
               <label>
                 종류
                 <select
@@ -182,12 +183,12 @@ export default function Admin({recordId, mode}: {recordId?: string; mode: "index
                   onChange={(e) => change("type", e.target.value)}
                 >
                   {["프로젝트", "실험 노트", "스킬·워크플로"].map((x) => (
-                    <option key={x}>{x}</option>
+                    <option key={x} value={x}>{typeName(x)}</option>
                   ))}
                 </select>
               </label>
               <label>
-                연결 프로젝트
+                함께 만든 작업 이름 (선택)
                 <input
                   list="projects"
                   value={r.project}
@@ -208,25 +209,25 @@ export default function Admin({recordId, mode}: {recordId?: string; mode: "index
                   onChange={(e) => change("title", e.target.value)}
                 />
               </label>
+              <label>무엇을 만들었고, 어디에 쓰나요?<textarea aria-label="무엇을 만들었고, 어디에 쓰나요?" rows={3} placeholder="무엇을 넣으면 어떤 결과가 나오는지 두 문장으로 적어 주세요." value={r.summary} onChange={e=>change("summary",e.target.value)}/></label>
               <label className="check">
                 <input
                   type="checkbox"
                   checked={r.example}
                   onChange={(e) => change("example", e.target.checked)}
                 />
-                개발용 예시 콘텐츠
+                실제 작업이 아닌 설명용 예시
               </label>
             </>
           )}
           {step === 1 && (
             <>
-              <h2>자료를 모아 주세요</h2>
+              <h2>완성한 모습이나 파일을 붙여 주세요.</h2>
               <p>
-                기본 파일 분석만 수행합니다. 코드를 실행하거나 AI 환경에 스킬을
-                설치하지 않습니다.
+                사진, 문서, 코드 파일을 보관할 수 있어요. 올린 파일은 나만 볼 수 있으며, 공개 여부는 뒤에서 따로 고릅니다. 코드 파일을 올려도 실행되지는 않습니다.
               </p>
               <label className="upload">
-                파일 업로드 · 최대 10MB
+                사진·파일 올리기 · 최대 10MB
                 <input
                   type="file"
                   onChange={(e) =>
@@ -269,7 +270,7 @@ export default function Admin({recordId, mode}: {recordId?: string; mode: "index
                         ],
                       }));
                       setMsg(
-                        "비공개 업로드 완료. 초안 저장을 눌러 기록과 연결하세요.",
+                        "파일을 나만 볼 수 있게 올렸습니다. 저장 버튼을 눌러 글에 붙여 주세요.",
                       );
                     })
                   }
@@ -281,14 +282,15 @@ export default function Admin({recordId, mode}: {recordId?: string; mode: "index
               {analysis && (
                 <div className="panel">
                   <b>{analysis.name}</b>
-                  <p>{analysis.analysis.method}</p>
-                  <pre>{JSON.stringify(analysis.analysis, null, 2)}</pre>
+                  <p>파일을 보관했습니다. 아래 내용이 맞는지 확인해 주세요.</p>
+                  {analysis.analysis.text&&<details><summary>파일 안의 글 보기</summary><pre>{analysis.analysis.text}</pre></details>}
+                  {analysis.analysis.files?.map((f:any)=><details key={f.path}><summary>{f.path}</summary>{f.text?<pre>{f.text}</pre>:<p>파일 목록에서 확인했습니다.</p>}</details>)}
                 </div>
               )}
-              <h3>연결된 원본 {r.assets.length}개</h3>
+              <h3>이 글에 붙인 파일 {r.assets.length}개</h3>
               {r.assets.map((id) => (
                 <div key={id}>
-                  <a href={"/api/files/" + id}>원본 확인 ↗</a>{" "}
+                  <a href={"/api/files/" + id}>{assetInfo.find(a=>a.id===id)?.name || "첨부 파일 보기"} ↗</a>{" "}
                   <button
                     onClick={() =>
                       change(
@@ -302,7 +304,7 @@ export default function Admin({recordId, mode}: {recordId?: string; mode: "index
                 </div>
               ))}
               <label>
-                대화에서 만든 지침 · 텍스트
+                AI와 이야기하며 정한 내용
                 <textarea
                   rows={8}
                   value={r.design}
@@ -310,7 +312,7 @@ export default function Admin({recordId, mode}: {recordId?: string; mode: "index
                 />
               </label>
               <label>
-                GitHub · 배포 사이트 링크
+                완성한 웹사이트나 코드 주소
                 <textarea
                   value={r.links}
                   onChange={(e) => change("links", e.target.value)}
@@ -320,9 +322,9 @@ export default function Admin({recordId, mode}: {recordId?: string; mode: "index
           )}
           {step === 2 && (
             <>
-              <h2>구조와 관계를 확인하세요</h2>
-              <details open>
-                <summary>하네스 작업 흐름</summary>
+              <h2>어떤 방법을 썼나요?</h2><p>이 단계는 나중에 채워도 괜찮아요. 사용한 방법과 다른 작업의 연결을 자세히 남기고 싶을 때 적습니다.</p>
+              <details className="detail-drawer">
+                <summary>일이 진행되는 순서 그리기 (선택)</summary>
                 <StructureEditor
                   nodes={r.nodes}
                   edges={r.edges}
@@ -330,7 +332,7 @@ export default function Admin({recordId, mode}: {recordId?: string; mode: "index
                 />
               </details>
               <details>
-                <summary>스킬 파일 구성</summary>
+                <summary>어떤 파일로 이루어졌나요? (선택)</summary>
                 <StructureEditor
                   nodes={r.files}
                   edges={r.fileEdges}
@@ -339,19 +341,19 @@ export default function Admin({recordId, mode}: {recordId?: string; mode: "index
                   }
                 />
               </details>
-              <h3>관계 지도 연결</h3><RelationshipsEditor records={records} currentId={r.id} value={r.relationships||[]} onChange={value=>change("relationships",value)}/>
-              <h3>관련 기록과 사용 버전</h3>
+              <h3>함께 쓴 방법이나 작업 연결하기</h3><RelationshipsEditor records={records} currentId={r.id} value={r.relationships||[]} onChange={value=>change("relationships",value)}/>
+              <details className="detail-drawer"><summary>당시에 쓴 내용과 실행 기록 자세히 남기기 (선택)</summary><h3>사용한 내용 고르기</h3>
               <VersionLinksEditor records={records} value={r.relations || []} onChange={value=>change("relations",value)}/>
-              <h3>실행 확인 기록</h3>
+              <h3>실제로 해 본 기록</h3>
               <p className="muted">
-                실제 확인한 근거를 입력하고, 사용한 기록의 게시 버전을 선택하세요. 자유 텍스트만으로는 실행 버전이 확정되지 않습니다.
+                직접 해 본 날짜와 결과를 적습니다. 나중에 내용이 바뀌어도 무엇을 썼는지 알 수 있도록, 당시 공개했던 내용을 골라 연결합니다.
               </p>
               {r.runs.map((run, i) => (
                 <div className="panel" key={i}>
                   {Object.entries({
                     date: "실행 날짜",
-                    skillVersion: "스킬 버전",
-                    harnessVersion: "하네스 버전",
+                    skillVersion: "AI 지침의 이름과 당시 내용",
+                    harnessVersion: "작업 순서의 이름과 당시 내용",
                     evidence: "확인 근거",
                     result: "결과",
                   }).map(([k, l]) => (
@@ -397,13 +399,13 @@ export default function Admin({recordId, mode}: {recordId?: string; mode: "index
                   ])
                 }
               >
-                + 실행 근거 기록
-              </button>
+                + 실제로 해 본 일 추가
+              </button></details>
             </>
           )}
           {step === 3 && (
             <>
-              <h2>판단과 결과를 기록하세요</h2>
+              <h2>처음 보는 사람에게 설명해 주세요.</h2><p>왜 만들었는지부터 적으면 읽는 사람이 이해하기 쉬워요. 모르는 용어는 하는 일로 풀어 써 주세요.</p>
               <label>
                 제목
                 <input
@@ -413,8 +415,9 @@ export default function Admin({recordId, mode}: {recordId?: string; mode: "index
               </label>
               {Object.entries(labels).map(([k, l]) => (
                 <label key={k}>
-                  {l as string}
+                  {l}<span className="field-help">{hints[k]}</span>
                   <textarea
+                    aria-label={l}
                     rows={4}
                     value={(r as any)[k]}
                     onChange={(e) => change(k, e.target.value)}
@@ -436,16 +439,15 @@ export default function Admin({recordId, mode}: {recordId?: string; mode: "index
           )}
           {step === 4 && (
             <>
-              <h2>공개할 부분을 선택하세요</h2>
+              <h2>다른 사람에게 무엇을 보여줄까요?</h2>
               <p>
-                제목·분류·제작 구분은 게시 시 공개됩니다. 파일 원문은 개별 공개
-                체크를 함께 확인하세요.
+                마지막에 ‘이 내용 공개하기’를 눌러야 다른 사람에게 보입니다. 제목과 종류는 함께 공개됩니다. 파일 설명을 보여주는 것과 원본 파일을 내려받게 하는 것은 별개예요.
               </p>
               {Object.entries({
-                description: "설명",
-                graph: "구조도 · 공개 원문 · 실행 근거",
-                images: "결과 이미지",
-                downloads: "첨부 원본 다운로드",
+                description: "소개와 만든 이야기",
+                graph: "진행 순서 · 작업 연결 · 공개로 고른 파일 내용 · 실행 기록",
+                images: "완성한 모습의 사진",
+                downloads: "원본 파일 내려받기",
               }).map(([k, l]) => (
                 <label className="check panel" key={k}>
                   <input
@@ -462,7 +464,7 @@ export default function Admin({recordId, mode}: {recordId?: string; mode: "index
                 </label>
               ))}
               <label>
-                이번 버전 변경 이유
+                이번에는 무엇을 바꿨나요?
                 <textarea
                   value={r.reason}
                   onChange={(e) => change("reason", e.target.value)}
@@ -474,10 +476,9 @@ export default function Admin({recordId, mode}: {recordId?: string; mode: "index
             <>
               <PublicPreview recordId={r.id}/>
               <p className="notice">
-                첨부 원본 {r.assets.length}개 · 이미지{" "}
-                {r.visibility.images ? "공개" : "비공개"} · 다운로드{" "}
-                {r.visibility.downloads ? "공개" : "비공개"}. 업로드 단계에서
-                파일 내용을 확인하세요.
+                붙인 파일 {r.assets.length}개 · 사진{" "}
+                {r.visibility.images ? "공개" : "비공개"} · 원본 내려받기{" "}
+                {r.visibility.downloads ? "공개" : "비공개"}. 파일 내용도 한 번 더 확인해 주세요.
               </p>
               <button
                 className="primary"
@@ -487,17 +488,17 @@ export default function Admin({recordId, mode}: {recordId?: string; mode: "index
                     const d = await save();
                     await api("/admin/publish/" + d.id, "POST");
                     await refresh();
-                    setMsg("새 버전을 게시했습니다.");
+                    setMsg("이 내용을 공개했습니다.");
                   })
                 }
               >
-                이 내용으로 게시
+                이 내용 공개하기
               </button>
             </>
           )}
           <footer className="editor-actions">
-            <button disabled={busy} onClick={() => perform(save)}>
-              초안 저장
+            <button disabled={busy} onClick={() => perform(save)} >
+              나만 보이게 저장
             </button>
             {step < 5 && (
               <button className="primary" onClick={() => {
@@ -514,11 +515,11 @@ export default function Admin({recordId, mode}: {recordId?: string; mode: "index
                     perform(async () => {
                       await api("/admin/unpublish/" + r.id, "POST");
                       await refresh();
-                      setMsg("비공개로 전환했습니다.");
+                      setMsg("이제 이 글은 나만 볼 수 있습니다.");
                     })
                   }
                 >
-                  게시 중단
+                  공개 멈추기
                 </button>
                 <button
                   onClick={() =>
@@ -527,10 +528,10 @@ export default function Admin({recordId, mode}: {recordId?: string; mode: "index
                     )
                   }
                 >
-                  버전 이력
+                  전에 공개했던 내용
                 </button>
                 <a href={"/api/admin/markdown/" + r.id} download="record.md">
-                  Markdown ↓
+                  이 글 내려받기 ↓
                 </a>
               </>
             )}
@@ -538,22 +539,22 @@ export default function Admin({recordId, mode}: {recordId?: string; mode: "index
           {versions.map((v) => (
             <details className="panel" key={v.id}>
               <summary>
-                v{v.number} · {v.created.slice(0, 10)} · {v.reason}
+                {v.number}번째 공개 · {v.created.slice(0, 10)} · {v.reason}
               </summary>
               <Detail record={{ ...v.content, assets: [] }} />
               <details>
-                <summary>보존된 전체 원문</summary>
+                <summary>당시 저장한 전체 자료</summary>
                 <pre>{JSON.stringify(v.content, null, 2)}</pre>
               </details>
               <button
                 onClick={() => {
-                  setR({ ...v.content, reason: "이전 버전에서 새 초안 작성" });
+                  setR({ ...v.content, reason: "전에 공개한 내용에서 다시 고침" });
                   setMsg(
-                    "이전 버전을 편집기로 가져왔습니다. 저장·게시 전에는 공개본이 유지됩니다.",
+                    "전에 공개한 내용을 가져왔습니다. 다시 공개하기 전까지 방문자는 원래 글을 봅니다.",
                   );
                 }}
               >
-                이 버전으로 초안 작성
+                이 내용을 가져와서 고치기
               </button>
             </details>
           ))}
@@ -568,7 +569,7 @@ export default function Admin({recordId, mode}: {recordId?: string; mode: "index
         </form></details>}
       {profile && (
         <details className="panel">
-          <summary>홈 소개 · 공개 연락처 설정</summary>
+          <summary>첫 화면 소개와 연락처 고치기</summary>
           {Object.entries({
             intro: "소개",
             contact: "공개 연락처",
@@ -592,7 +593,7 @@ export default function Admin({recordId, mode}: {recordId?: string; mode: "index
               })
             }
           >
-            공개 홈 정보 저장
+            첫 화면에 반영하기
           </button>
         </details>
       )}

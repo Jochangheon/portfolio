@@ -1,6 +1,6 @@
 interface:
   display_name: "포트폴리오 기록"
-  short_description: "AI 작업과 스킬의 과정·근거·연결을 포트폴리오 초안으로 정리"
+  short_description: "무엇을 만들고 왜 필요한지 쉽게 설명해 포트폴리오에 저장"
   default_prompt: "$portfolio-record 지금 만든 스킬과 AI 작업 과정을 포트폴리오에 기록하고 관련 프로젝트·실험과 연결해줘."
 policy:
   allow_implicit_invocation: true

@@ -1,3 +1,4 @@
+import {evidenceName} from "../copy";
 import type { NodeData, EdgeData } from "../model";
 export default function StructureEditor({
   nodes,
@@ -16,19 +17,19 @@ export default function StructureEditor({
   return (
     <div>
       <p className="muted">
-        관계는 자동 확정하지 않습니다. 근거와 버전을 입력해 주세요.
+        각 항목에 이름과 하는 일을 적고, 어떤 순서로 이어지는지 연결해 주세요. 모르는 부분은 아직 확인이 필요하다고 표시할 수 있어요.
       </p>
       {nodes.map((n, i) => (
         <details key={n.id} className="panel">
           <summary>
-            {n.label || "새 항목"} · {n.evidence}
+            {n.label || "새 항목"} · {evidenceName(n.evidence)}
           </summary>
           {[
             ["label", "이름"],
-            ["kind", "역할 종류"],
+            ["kind", "어떤 일을 하는 항목인가요?"],
             ["role", "쉬운 설명"],
-            ["version", "버전"],
-            ["source", "근거 · 관련 자료"],
+            ["version", "당시에 쓴 내용의 이름이나 번호"],
+            ["source", "어디에서 확인했나요?"],
             ["text", "원문"],
           ].map(([k, l]) => (
             <label key={k}>
@@ -40,13 +41,13 @@ export default function StructureEditor({
             </label>
           ))}
           <label>
-            근거 구분
+            확인한 방법
             <select
               value={n.evidence}
               onChange={(e) => update(i, "evidence", e.target.value)}
             >
               {["파일에 명시", "작성자 확인", "추정"].map((x) => (
-                <option key={x}>{x}</option>
+                <option key={x} value={x}>{evidenceName(x)}</option>
               ))}
             </select>
           </label>
