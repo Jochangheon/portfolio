@@ -8,6 +8,8 @@ import type { Store } from "./store.ts";
 import { hashPassword, verifyPassword } from "./password.ts";
 import { publicRecord } from "../src/projection.ts";
 import type { VersionReference } from "../src/model.ts";
+import { atlas, validRelationships, relationshipsExist } from "./atlas.ts";
+import { registerIngest } from "./ingest.ts";
 const MAX = 10 * 1024 * 1024;
 const textExt = new Set([
   ".md",
@@ -39,6 +41,7 @@ function valid(r: any): r is RecordData {
   return (
     r &&
     typeof r.id === "string" && (r.id === "" || /^[a-zA-Z0-9_-]{1,128}$/.test(r.id)) &&
+    validRelationships(r.relationships) &&
     (r.relations === undefined || validReferences(r.relations)) &&
     typeof r.title === "string" &&
     r.title.trim().length > 0 &&
@@ -267,6 +270,9 @@ export function createApp(
     res.cookie("session",sid,{httpOnly:true,sameSite:"lax",secure:origin.startsWith("https:"),maxAge:8*3600000,path:"/"});
     res.json({ok:true});
   });
+  registerIngest(app,store,valid);
+  app.get("/api/atlas",(_req,res)=>res.json(atlas(store)));
+  app.get("/api/admin/atlas",(_req,res)=>res.json(atlas(store,true)));
   app.use(express.json({ limit: "64mb" }));
   app.post("/api/admin/password",(req,res)=>{
     const current=passwordHash();
@@ -297,6 +303,7 @@ export function createApp(
   });
   const present = (r: RecordData) => {
     const p=publicRecord(r);
+    p.relationships=(p.relationships||[]).flatMap(x=>{const target=store.get(x.targetId);return target?[{...x,title:target.title}]:[];});
     p.relations=resolveRefs(p.relations);
     p.runs=p.runs.map(run=>({...run,references:resolveRefs(run.references)}));
     return {...p,assets:assetsFor(r)};
@@ -366,6 +373,7 @@ export function createApp(
       )
     )
       return res.status(400).json({ error: "첨부파일이 존재하지 않습니다." });
+    if (!relationshipsExist(store,req.body)) return res.status(400).json({error:"관계 지도 연결 대상이나 버전이 존재하지 않습니다."});
     if (!referencesExist(req.body))
       return res.status(400).json({error:"연결한 게시 버전이 존재하지 않습니다."});
     if (!confirmedRuns(req.body))
@@ -387,7 +395,7 @@ export function createApp(
   app.post("/api/admin/publish/:id", (req, res) => {
     const r = store.get(req.params.id, true);
     if (!r) return res.sendStatus(404);
-    if (!valid(r) || !referencesExist(r) || !confirmedRuns(r))
+    if (!valid(r) || !relationshipsExist(store,r) || !referencesExist(r) || !confirmedRuns(r))
       return res.status(400).json({error:"기록과 실행 당시 버전 연결을 확인하세요."});
     if (!r.reason.trim())
       return res.status(400).json({ error: "변경 이유를 입력하세요." });
@@ -679,6 +687,7 @@ export function createApp(
     const remap = (r: RecordData, id: string) => ({
       ...r,
       id,
+      relationships:(r.relationships||[]).filter(x=>recordMap.has(x.targetId)).map(x=>({...x,targetId:recordMap.get(x.targetId)!})),
       relations:remapRefs(r.relations),
       runs:r.runs.map(x=>({...x,references:remapRefs(x.references)})),
       assets: r.assets

@@ -1,3 +1,5 @@
+export type Relationship = { targetId: string; targetVersion?: number; kind: "uses" | "extends" | "tests" | "produces" | "related"; evidence: "confirmed" | "proposed"; note: string; title?: string };
+export const relationshipLabels = { uses: "사용", extends: "확장", tests: "검증", produces: "산출", related: "관련" };
 export type VersionReference = { recordId: string; version: number; role: string; note: string; title?: string };
 export type NodeData = {
   id: string;
@@ -41,6 +43,7 @@ export type RecordData = {
     images: boolean;
     downloads: boolean;
   };
+  relationships?: Relationship[];
   relations?: VersionReference[];
   assets: string[];
   nodes: NodeData[];
@@ -80,6 +83,7 @@ export const blank = (): RecordData => ({
     images: false,
     downloads: false,
   },
+  relationships: [],
   relations: [],
   assets: [],
   nodes: [],

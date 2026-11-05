@@ -22,3 +22,5 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: npm run test:browser
       - run: npm run test:frontend
+      - run: npm run test:atlas
+      - run: python3 skills/portfolio-record/scripts/test_portfolio.py

@@ -1,6 +1,7 @@
 import ReactMarkdown from "react-markdown";
 import Graph from "./Graph";
 import Links from "./Links";
+import { relationshipLabels } from "../model";
 import { labels } from "./fields";
 import { recordPath } from "../lib/routes";
 export default function Detail({
@@ -81,6 +82,7 @@ export default function Detail({
           </section>
         </>
       )}
+      {r.visibility.graph && r.relationships?.length > 0 && <section><h2>이 기록의 연결</h2>{r.relationships.map((x:any,i:number)=><div className="panel" key={i}><a href={recordPath(x.targetId)}>{x.title||"연결 기록"}</a><p>{(relationshipLabels as any)[x.kind]} · {x.evidence==="proposed"?"제안 · 확인 필요":"연결 근거 확인"}{x.targetVersion?" · v"+x.targetVersion:""}</p><p>{x.note}</p></div>)}<a href="/atlas">전체 관계 지도 →</a></section>}
       {r.visibility.description && r.relations?.length > 0 && (
         <section><h2>연결된 기록과 사용 버전</h2>
           {r.relations.map((ref: any, i: number) => <p key={i}>

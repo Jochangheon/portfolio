@@ -11,8 +11,9 @@ export function publicRecord(input: RecordData): RecordData {
   publicText:n.publicText===true,...(n.publicText===true?{text:n.text}:{})
  });
  const ref=(r:VersionReference):VersionReference=>({recordId:r.recordId,version:r.version,role:r.role,note:r.note,...(r.title?{title:r.title}:{})});
- if(!p.visibility.graph) { p.nodes=[];p.edges=[];p.files=[];p.fileEdges=[];p.runs=[]; }
+ if(!p.visibility.graph) { p.nodes=[];p.edges=[];p.files=[];p.fileEdges=[];p.runs=[];p.relationships=[]; }
  else {
+  p.relationships=(p.relationships||[]).map(x=>({targetId:x.targetId,...(x.targetVersion?{targetVersion:x.targetVersion}:{}),kind:x.kind,evidence:x.evidence,note:x.note}));
   p.nodes=p.nodes.map(node);p.files=p.files.map(node);
   const edge=(e:any)=>({id:e.id,source:e.source,target:e.target,label:e.label,evidence:e.evidence});
   p.edges=p.edges.map(edge);p.fileEdges=p.fileEdges.map(edge);

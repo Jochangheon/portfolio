@@ -9,12 +9,14 @@ export const editorPath = (id: string, preview = false) =>
   "/admin/records/" + encodeURIComponent(id) + (preview ? "/preview" : "/edit");
 export type Route =
   | { page: "home" | "approach" | "example" | "not-found" }
+  | { page: "atlas"; admin: boolean }
   | { page: "records"; category: string }
   | { page: "detail"; id: string }
   | { page: "admin"; id?: string; mode: "index" | "new" | "edit" | "preview" };
 export function matchRoute(path: string): Route {
   path = path.replace(/\/$/, "") || "/";
   if (path === "/") return { page: "home" };
+  if (path === "/atlas" || path === "/admin/atlas") return {page:"atlas",admin:path.startsWith("/admin")};
   if (path === "/approach") return { page: "approach" };
   if (path === "/examples/workflow") return { page: "example" };
   const category = categories.find((x) => x.path === path);

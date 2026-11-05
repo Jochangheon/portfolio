@@ -1,0 +1,35 @@
+---
+name: portfolio-record
+description: "스킬을 만들거나 AI로 프로젝트·실험을 수행한 뒤 조창헌 포트폴리오에 과정과 결과를 비공개 초안으로 기록하고 스킬·프로젝트·실험의 관계 지도를 연결한다. '이 작업을 포트폴리오에 기록', '만든 스킬을 사이트에 정리', 'AI 활용 과정과 연결 관계를 남겨줘' 요청에 사용한다. 일반 코딩이나 스킬 설치만 요청한 경우에는 사용하지 않는다."
+---
+
+# Portfolio Record
+
+작업의 결과뿐 아니라 **사람의 판단 → AI의 수행 → 검증 → 개선**을 방문자가 이해할 수 있는 기록으로 만든다. 기본 사이트는 https://portfolio.49.247.40.177.sslip.io 이다.
+
+## 작업 순서
+
+1. 현재 요청에서 기록할 범위를 확인한다. 해당 대화·지정한 스킬 폴더·명시한 작업 결과만 읽는다. 관련 없는 폴더나 모든 스킬을 일괄 수집하지 않는다.
+2. [기록 규칙과 스키마](references/recording.md)를 읽는다. 기존 연결 대상을 찾을 때만 `python <skill-dir>/scripts/portfolio.py catalog`를 사용한다.
+3. 스킬이면 `inspect`, 프로젝트·실험이면 `new`로 작업 폴더에 JSON 묶음을 만든다. <skill-dir>는 이 SKILL.md가 있는 절대 경로다.
+4. 실제 대화와 산출물을 근거로 JSON을 보완한다. 문제, 사용자 판단, AI 수행, 설계, 검증, 한계를 구분한다. 파일 이름만 보고 역할·실행 여부를 단정하지 않는다. 확인되지 않은 관계는 `proposed`로 남긴다.
+5. 제목과 연결선만 읽어도 이해되게 구성한다. 한 스킬은 하나의 기록, 별도 가설을 검증한 실험은 별도 기록으로 연결한다. 내부 파일 구성은 `files/fileEdges`, 작업 흐름은 `nodes/edges`, 기록 간 관계는 `connections`에 넣는다. 의미 없는 노드를 늘리지 않는다.
+6. 인증정보, 개인정보, 고객 원문, 절대 로컬 경로가 들어 있지 않은지 JSON을 직접 검토한다. 원문 업로드는 하지 않는다. `validate` 후 사용자가 기록을 요청한 범위에서 `push`한다. 추가적인 게시 승인을 임의로 요구하지 않는다.
+7. 저장된 기록의 편집 링크와 관리자 관계 지도 링크를 보고한다. 초안 저장과 공개 게시를 구분한다. 자동으로 게시하거나 공개 범위를 변경하지 않는다.
+
+## 명령
+
+```text
+python <skill-dir>/scripts/portfolio.py inspect <skill-folder> --key skills/my-skill --title "스킬 이름" --origin "직접 제작" --out record.json
+python <skill-dir>/scripts/portfolio.py new --key projects/my-project --title "프로젝트 이름" --type "프로젝트" --origin "직접 제작" --out record.json
+python <skill-dir>/scripts/portfolio.py validate record.json
+python <skill-dir>/scripts/portfolio.py catalog
+python <skill-dir>/scripts/portfolio.py push record.json
+```
+
+- `sourceKey`는 동일 작업에 유지한다. 반복 저장은 같은 초안을 갱신한다. 사이트에서 직접 수정한 뒤에는 충돌이 발생하며 기존 내용을 덮어쓰지 않는다. 충돌 시 사이트 편집 링크를 안내하고, 요청 없이 새 키를 만들어 중복을 우회하지 않는다.
+- 새로운 작업이나 의도적인 새 버전 기록은 새 키를 정한다. 기존 게시본의 새 버전은 관리자에서 초안을 검토한 뒤 게시한다. 실행 기록에 실제 사용한 게시 버전을 연결하는 일은 관리자 화면에서 수행한다.
+- 토큰은 초안 저장과 목록 메타데이터 조회만 가능하다. `push`는 원본 파일·실행 확정·게시를 수행하지 않는다.
+- 연결 키가 없으면 로컬 JSON 작성과 검증을 먼저 완료한다. 관리자 > **AI 기록 스킬 연결**에서 발급 후 `configure`의 숨김 입력에 넣으면 된다. Windows에서는 현재 사용자의 자격 증명 관리자에 저장한다. 다른 OS에서는 사용자가 안전하게 설정한 `PORTFOLIO_TOKEN` 환경변수를 사용한다. 비밀번호나 토큰을 채팅·코드·출력에 쓰지 않는다.
+- `--url` 또는 `PORTFOLIO_URL`로 사이트를 바꿀 수 있다. 해당 사이트용 토큰만 사용한다. URL 리다이렉트는 따르지 않는다.
+- 실패를 완료로 표현하지 않는다. 401은 연결 키 확인, 409는 수동 편집 충돌, 400은 입력 오류다. 네트워크 실패는 결과가 불명확하므로 동일 키로 한 번 재시도한 뒤 확인한다.

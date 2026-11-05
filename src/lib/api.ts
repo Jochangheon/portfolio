@@ -4,6 +4,7 @@ export async function api(path: string, method = "GET", body?: any) {
     if (method !== "GET")
       throw Error("화면 확인용 미리보기에서는 저장할 수 없습니다.");
     if (path === "/records") return snapshot.records;
+    if (path === "/atlas") return {nodes:[],edges:[]};
     if (path === "/profile") return snapshot.profile;
     if (path === "/session") return { admin: false, configured: false };
     if (path.startsWith("/records/")) {

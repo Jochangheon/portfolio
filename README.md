@@ -100,3 +100,37 @@ API 테스트는 관리자/CSRF 차단, 원본과 이미지 권한 분리, 미�
 `npm run build:site`는 다중 경로 HTML과 공통 assets를 `site/`에 생성합니다. **폴더 전체**가 필요하며 index.html 한 개로 배포하지 않습니다. 정적 미리보기는 로그인·서버 저장 기능이 없습니다. 실제 앱은 Node 서버와 영구 저장소를 함께 실행해야 합니다.
 
 GitHub Actions 워크플로는 같은 테스트를 수행하도록 제공됩니다. 실제 실행 결과와 배포 여부는 해당 커밋의 Actions 결과 및 작업 보고를 확인하세요.
+
+
+## AI 작업 관계 지도와 기록 스킬
+
+- 공개 지도: `/atlas`. 관리자 지도: `/admin/atlas`. 실제 URL 경로로 이동합니다.
+- 프로젝트·스킬·실험은 노드, 사용·확장·검증·산출·관련은 방향이 있는 연결입니다. 노드/선을 선택해 설명, 연결 근거, 특정 게시 버전을 확인합니다. 검색, 종류 필터, 주변 연결만 보기, 키보드로 사용할 수 있는 목록을 제공합니다.
+- 관계 데이터는 기존 SQLite에 저장합니다. 별도 그래프 DB는 설치하지 않았습니다.
+- 공개 지도는 게시 스냅샷만 읽으며 비공개 대상과 연결 근거를 제외합니다. 그래프 공개가 꺼진 기록에서 출발하는 연결은 표시하지 않습니다.
+- `proposed`는 제안, `confirmed`는 관계의 근거 확인입니다. 실행 성공을 뜻하지 않습니다. 실제 실행은 기존 `runs.references`로 당시 게시 버전을 지정합니다.
+
+### 재사용 스킬
+
+`skills/portfolio-record/SKILL.md`와 하위 폴더를 Codex 스킬 디렉터리에 설치하고 `$portfolio-record`로 호출합니다. Python 3 표준 라이브러리만 사용합니다. 서버의 관리자 화면에서 **AI 기록 스킬 연결**을 펼쳐 초안 전용 키를 발급·폐기할 수 있습니다.
+
+```text
+python skills/portfolio-record/scripts/portfolio.py configure
+python skills/portfolio-record/scripts/portfolio.py inspect path/to/skill --key skills/example --title "스킬 이름" --origin "직접 제작" --out record.json
+python skills/portfolio-record/scripts/portfolio.py validate record.json
+python skills/portfolio-record/scripts/portfolio.py push record.json
+```
+
+Windows 연결 키는 현재 사용자의 자격 증명 관리자에 저장합니다. 다른 OS는 안전하게 설정한 `PORTFOLIO_TOKEN`을 사용합니다. `PORTFOLIO_URL` 또는 전역 `--url`로 기본 사이트를 변경할 수 있습니다. HTTPS만 허용하며 로컬 테스트에 한해 HTTP를 허용합니다. HTTP 리다이렉트를 따르지 않습니다.
+
+파일 분석은 지정한 폴더의 상대 경로·크기·SHA-256을 읽고 역할을 제안합니다. 민감한 이름, 심볼릭 링크, 일반 빌드/의존성 폴더를 제외합니다. 원문은 자동 전송하지 않으며 원본 코드를 실행하지 않습니다. 이름 필터는 내용 검토를 대체하지 않으므로 전송 전 작성한 설명과 파일명을 검토해야 합니다.
+
+### 초안 수집 API
+
+`GET /api/ingest/catalog`, `POST /api/ingest/records`는 Bearer 기록 전용 키를 요구합니다. 키 원문은 발급 시 한 번 반환하고 서버에는 SHA-256만 저장합니다. 유효기간은 180일이며 공개·게시·파일 다운로드·관리 API 권한을 주지 않습니다. 카탈로그에는 연결에 필요한 제목/분류/ID/게시 버전/sourceKey 메타데이터만 반환합니다.
+
+묶음은 최대 20개·2MB이고 sourceKey로 같은 초안을 갱신합니다. 같은 묶음 안의 새 기록도 targetKey로 연결할 수 있습니다. 검증과 저장은 하나의 트랜잭션입니다. 수동 편집한 초안과 충돌하면 409로 거부합니다. 기존 공개본과 게시 버전은 유지하며 모든 새 초안의 공개 선택은 꺼집니다. 관리자에서 검토·공개 범위 선택·미리보기 후 게시합니다.
+
+관계는 JSON 백업에 포함되며 가져올 때 새 기록 ID로 변환합니다. 연결 키와 sourceKey 매핑은 관리자 JSON 콘텐츠 백업에 포함하지 않습니다. 서버 데이터 폴더 백업에는 SQLite와 업로드 파일을 함께 보존하세요.
+
+추가 검증: `npm run test:atlas`, `python3 skills/portfolio-record/scripts/test_portfolio.py`.

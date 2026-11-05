@@ -5,6 +5,8 @@ import { editorPath } from "../lib/routes";
 import Detail from "../components/Detail";
 import StructureEditor from "../components/StructureEditor";
 import VersionLinksEditor from "../components/VersionLinksEditor";
+import RelationshipsEditor from "../components/RelationshipsEditor";
+import IntegrationSettings from "../components/IntegrationSettings";
 import { labels } from "../components/fields";
 function PublicPreview({recordId}: {recordId: string}) {
  const [record,setRecord]=useState<any>(); const [error,setError]=useState("");
@@ -118,7 +120,7 @@ export default function Admin({recordId, mode}: {recordId?: string; mode: "index
       </p>
       <div className="admin-layout">
         <aside>
-          <a className="button primary" href="/admin/records/new">+ 새 기록</a>
+          <a className="button primary" href="/admin/records/new">+ 새 기록</a><a className="button" href="/admin/atlas">내 관계 지도 →</a>
           {records.map(x => <a className="record-select" key={x.id} href={editorPath(x.id)} aria-current={r.id===x.id ? "page" : undefined}>
             {x.title}<small>{x.published ? "게시됨 · 수정은 초안" : "비공개 초안"} / v{x.revision}</small>
           </a>)}
@@ -337,6 +339,7 @@ export default function Admin({recordId, mode}: {recordId?: string; mode: "index
                   }
                 />
               </details>
+              <h3>관계 지도 연결</h3><RelationshipsEditor records={records} currentId={r.id} value={r.relationships||[]} onChange={value=>change("relationships",value)}/>
               <h3>관련 기록과 사용 버전</h3>
               <VersionLinksEditor records={records} value={r.relations || []} onChange={value=>change("relations",value)}/>
               <h3>실행 확인 기록</h3>
@@ -556,6 +559,7 @@ export default function Admin({recordId, mode}: {recordId?: string; mode: "index
           ))}
         </div>}
       </div>
+      <IntegrationSettings/>
       {session.passwordConfigured && <details className="panel"><summary>관리자 비밀번호 변경</summary>
         <form onSubmit={e=>{e.preventDefault();perform(async()=>{await api("/admin/password","POST",{currentPassword:password,newPassword:nextPassword});setPassword("");setNextPassword("");location.assign("/admin");});}}>
           <label>현재 비밀번호<input type="password" required autoComplete="current-password" value={password} onChange={e=>setPassword(e.target.value)}/></label>

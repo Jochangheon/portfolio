@@ -15,7 +15,8 @@
     "build:preview": "vite build --config vite.preview.config.ts && node scripts/prepare-preview.mjs",
     "test:frontend": "node --import tsx tests/frontend.browser.ts",
     "preview": "npm run build:preview && vite preview --config vite.preview.config.ts --host 127.0.0.1 --port 4173 --strictPort",
-    "build:site": "npm run build:preview && node scripts/export-site.mjs"
+    "build:site": "npm run build:preview && node scripts/export-site.mjs",
+    "test:atlas": "node --import tsx tests/atlas.browser.ts"
   },
   "dependencies": {
     "@xyflow/react": "^12.10.0",

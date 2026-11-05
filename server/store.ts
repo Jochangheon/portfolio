@@ -13,6 +13,8 @@ export function createStore(dir: string) {
  CREATE TABLE IF NOT EXISTS sessions(id TEXT PRIMARY KEY,expires INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS login_attempts(ip TEXT NOT NULL,created INTEGER NOT NULL);
  CREATE INDEX IF NOT EXISTS login_attempts_ip ON login_attempts(ip);
+ CREATE TABLE IF NOT EXISTS integration_tokens(id TEXT PRIMARY KEY,label TEXT NOT NULL,hash TEXT NOT NULL UNIQUE,created INTEGER NOT NULL,expires INTEGER NOT NULL,revoked INTEGER NOT NULL DEFAULT 0,last_used INTEGER);
+ CREATE TABLE IF NOT EXISTS ingestions(source_key TEXT PRIMARY KEY,record_id TEXT NOT NULL,last_hash TEXT NOT NULL,updated INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS settings(id INTEGER PRIMARY KEY,content TEXT NOT NULL);`);
   return {
     db,
