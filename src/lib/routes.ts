@@ -1,3 +1,5 @@
+import { projects, type Project } from "../portfolio.ts";
+
 export const categories = [
   { label: "전체", path: "/records" },
   { label: "프로젝트", path: "/records/projects" },
@@ -8,7 +10,8 @@ export const recordPath = (id: string) => "/records/" + encodeURIComponent(id);
 export const editorPath = (id: string, preview = false) =>
   "/admin/records/" + encodeURIComponent(id) + (preview ? "/preview" : "/edit");
 export type Route =
-  | { page: "home" | "approach" | "example" | "not-found" }
+  | { page: "home" | "ai" | "career" | "projects" | "approach" | "example" | "not-found" }
+  | { page: "project"; project: Project }
   | { page: "atlas"; admin: boolean }
   | { page: "records"; category: string }
   | { page: "detail"; id: string }
@@ -16,6 +19,13 @@ export type Route =
 export function matchRoute(path: string): Route {
   path = path.replace(/\/$/, "") || "/";
   if (path === "/") return { page: "home" };
+  if (path === "/ai") return { page: "ai" };
+  if (path === "/career") return { page: "career" };
+  if (path === "/projects") return { page: "projects" };
+  if (path.startsWith("/projects/")) {
+    const project = projects.find(item => path === "/projects/" + item.slug);
+    return project ? { page: "project", project } : { page: "not-found" };
+  }
   if (path === "/atlas" || path === "/admin/atlas") return {page:"atlas",admin:path.startsWith("/admin")};
   if (path === "/approach") return { page: "approach" };
   if (path === "/examples/workflow") return { page: "example" };

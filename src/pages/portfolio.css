@@ -1,0 +1,115 @@
+.portfolio-page {
+  --ink: #1e352c;
+  --subtle: #50665b;
+  --line: #cfdbd2;
+  color: var(--ink);
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+.profile-lead {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(190px, 27%);
+  gap: clamp(30px, 7vw, 92px);
+  align-items: center;
+  padding: clamp(42px, 6vw, 82px) 0;
+}
+.profile-discipline, .project-context, .resume-date {
+  color: var(--subtle);
+  font-size: .86rem;
+  font-weight: 650;
+  margin: 0 0 .8rem;
+}
+.profile-lead h1, .portfolio-heading h1 {
+  margin: 0 0 1.2rem;
+  font-size: clamp(2rem, 3.7vw, 3.45rem);
+  line-height: 1.28;
+  letter-spacing: -.055em;
+}
+.profile-intro, .case-summary {
+  max-width: 37rem;
+  color: var(--subtle);
+  font-size: 1.08rem;
+  line-height: 1.85;
+}
+.profile-portrait {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 310px;
+  object-fit: cover;
+  object-position: center 41%;
+  border-radius: 4px 44px 4px 4px;
+}
+.portfolio-actions, .work-heading, .career-strip, .source-line {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1.35rem;
+}
+.portfolio-actions {margin-top: 1.5rem;}
+.portfolio-actions a, .work-heading a, .case-link, .career-strip a {font-size: .91rem; font-weight: 650;}
+.portfolio-block {border-top: 1px solid var(--line); padding: 2.4rem 0 1.2rem;}
+.work-heading, .career-strip, .source-line {justify-content: space-between;}
+.work-heading {margin-bottom: 1.3rem;}
+.portfolio-page h2 {font-size: clamp(1.38rem, 2.4vw, 1.85rem); line-height: 1.35; letter-spacing: -.045em;}
+.work-heading h2, .career-strip h2 {margin: 0;}
+.project-list {display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 1rem;}
+.project-tile {
+  display: flex;
+  flex-direction: column;
+  color: var(--ink);
+  text-decoration: none;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: clamp(19px, 2vw, 30px);
+  background: #fff;
+}
+.project-tile:hover, .project-tile:focus-visible {border-color: #537968; background: #f2f7f2;}
+.project-tile h3 {margin: 0 0 .85rem; font-size: 1.28rem; line-height: 1.43; letter-spacing: -.045em;}
+.project-tile p:not(.project-context) {font-size: .94rem; color: var(--subtle); line-height: 1.8;}
+.case-link {margin-top: auto; padding-top: .6rem;}
+.career-strip {border-top: 1px solid var(--line); margin-top: 1.5rem; padding: 2rem 0;}
+.career-strip div {max-width: 44rem;}
+.career-strip p {margin: .6rem 0 0; color: var(--subtle);}
+.source-line {border-top: 1px solid var(--line); padding-top: 1.2rem; font-size: .84rem; color: var(--subtle);}
+.source-link {font-size: .85rem;}
+.portfolio-heading {padding: 3.6rem 0 1.8rem;}
+.portfolio-heading > p:last-child {color: var(--subtle);}
+.projects-page {padding-top: 0;}
+.resume-page, .case-page {max-width: 860px; margin: 0 auto;}
+.resume-page section, .case-section {border-top: 1px solid var(--line); padding: 2rem 0;}
+.resume-entry {display: grid; grid-template-columns: 9.8rem 1fr; gap: 1.2rem; padding: 1rem 0;}
+.resume-entry h3 {margin: 0 0 .35rem;}
+.resume-entry p, .resume-entry ul {margin: .25rem 0 .5rem;}
+.resume-entry ul {padding-left: 1.2rem;}
+.resume-role, .case-period {color: var(--subtle); font-size: .9rem;}
+.milestones {list-style: none; padding: 0; margin: 0;}
+.milestones li, .skill-pairs {display: grid; grid-template-columns: 9.8rem 1fr; gap: .7rem 1.2rem;}
+.milestones li + li {margin-top: .8rem;}
+.milestones span, .skill-pairs dt {font-weight: 650;}
+.skill-pairs dd {margin: 0;}
+.back-to-works {display: inline-block; margin-top: 2.5rem; font-size: .9rem;}
+.case-page .portfolio-heading {padding-top: 1.6rem;}
+.case-summary {max-width: 43rem; margin-bottom: 0;}
+.case-section p {max-width: 44rem; margin: 0; line-height: 1.9;}
+.case-section h2 {font-size: 1.3rem; margin-bottom: .6rem;}
+.case-tools {margin: .4rem 0 1.2rem; color: var(--subtle); font-size: .92rem;}
+.case-tools strong {margin-right: .55rem; color: var(--ink);}
+@media(max-width: 800px) {
+  .project-list {grid-template-columns: repeat(2, minmax(0,1fr));}
+  .profile-lead {gap: 24px;}
+}
+@media(max-width: 600px) {
+  .profile-lead {grid-template-columns: 1fr; position: relative; padding: 2rem 0;}
+  .profile-portrait {position: absolute; top: 2rem; right: 0; width: 68px; height: 77px; border-radius: 4px 14px 4px 4px;}
+  .profile-lead h1 {font-size: 1.85rem; padding-right: 75px;}
+  .profile-lead h1 br {display: none;}
+  .profile-intro {font-size: 1rem;}
+  .project-list, .resume-entry, .skill-pairs {grid-template-columns: 1fr;}
+  .resume-entry {gap: .1rem;}
+  .skill-pairs {gap: .15rem;} .skill-pairs dd {margin-bottom: .8rem;}
+  .milestones li {grid-template-columns: 4.4rem 1fr;}
+  .portfolio-heading {padding: 2rem 0 1rem;}
+  .career-strip {gap: .7rem;}
+  .source-line {gap: .7rem;}
+}

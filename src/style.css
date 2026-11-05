@@ -756,3 +756,8 @@ a:focus-visible, button:focus-visible { outline:3px solid #608b72; outline-offse
 @media(max-width:800px){.plain-hero{grid-template-columns:1fr;gap:30px;padding:44px 0!important}.reading-card{padding:26px}.reading-card h2 br{display:none}.desktop-break{display:none}.kind-cards{grid-template-columns:1fr;gap:12px}.kind-cards a{padding:18px 4px}.plain-empty{padding:26px}.plain-guide h1,.plain-detail h1,.atlas-page .section-title h1{font-size:30px;letter-spacing:-1px}.connection-invite{display:block}.connection-invite>a{display:inline-block;margin-top:18px}.contribution-grid{grid-template-columns:1fr;gap:0}.detail-drawer{padding:20px 18px}.guide-steps>div{gap:15px}.guide-steps h2{font-size:22px}.plain-detail p,.plain-detail li{font-size:16px}.hero-actions{gap:18px}.plain-cards .card-body{padding:24px}}
 
 body{word-break:keep-all;overflow-wrap:break-word}pre,code{word-break:normal}
+
+header nav a[aria-current] {color:#284e39; font-weight:750; text-decoration:underline; text-underline-offset:6px;}
+.ai-section-nav {padding:14px 0; flex-wrap:wrap; border-bottom:1px solid #d7ded4; gap:12px 24px;}
+.ai-section-nav a[aria-current] {font-weight:700; text-decoration:underline;}
+.site-footer a {color:#53675a;}

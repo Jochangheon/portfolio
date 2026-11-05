@@ -41,11 +41,11 @@ try {
   const page = await context.newPage();
   const errors: string[] = [];
   page.on("pageerror", (e: Error) => errors.push(e.message));
-  await page.goto("http://localhost:3101");
+  await page.goto("http://localhost:3101/ai");
   await page.getByRole("heading", { name: /AI로 만든 웹사이트와/ }).waitFor();
   await page.screenshot({ path: "outputs/portfolio-desktop.png", fullPage: true });
   assert.equal(await page.locator('a[href="/examples/workflow"]').count(),0);
-  await page.getByRole("link",{name:"이 사이트 소개",exact:true}).click();
+  await page.getByRole("link",{name:"AI 작업 소개",exact:true}).click();
   await page.getByText("글이 어떻게 생겼는지 예시로 보기",{exact:true}).click();
   await page.getByRole("link",{name:/설명용 예시 읽어보기/}).click();
   await page.getByText("만드는 순서와 사용한 파일 자세히 보기",{exact:true}).click();
@@ -91,7 +91,7 @@ try {
   await page.getByText("이 내용을 공개했습니다.", { exact: true }).waitFor();
   const anonymous = await browser.newContext();
   const visitor = await anonymous.newPage();
-  await visitor.goto("http://localhost:3101");
+  await visitor.goto("http://localhost:3101/ai");
   await visitor
     .getByRole("link", { name: /브라우저 검증 기록/ })
     .first()
@@ -117,7 +117,7 @@ try {
   await page.screenshot({ path: "outputs/portfolio-admin.png", fullPage: true });
   await page.getByRole("button", { name: "공개 멈추기" }).click();
   await page.getByText("이제 이 글은 나만 볼 수 있습니다.", { exact: true }).waitFor();
-  await visitor.goto("http://localhost:3101");
+  await visitor.goto("http://localhost:3101/ai");
   await visitor.getByText("공개할 작업을 정리하고 있어요.").waitFor();
   await visitor.setViewportSize({ width: 390, height: 844 });
   await visitor.screenshot({

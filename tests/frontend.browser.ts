@@ -16,12 +16,27 @@ try{
   const origin="http://localhost:"+port,ctx=await browser.newContext(),page=await ctx.newPage();
   ctx.on("request",r=>{if(/^https?:/.test(r.url())&&new URL(r.url()).origin!==origin)external.push(r.url());});
   page.on("pageerror",e=>errors.push(e.message));
-  await page.goto(origin);await page.getByRole("heading",{name:/AI로 만든 웹사이트와/}).waitFor();
+  await page.goto(origin);
+  await page.getByRole("heading",{name:/웹사이트 이용 기록을 분석하는/}).waitFor();
+  await page.locator(".profile-portrait").evaluate((img: HTMLImageElement) => img.decode());
+  await page.getByRole("link",{name:"경력과 학력",exact:true}).click();
+  await page.getByRole("heading",{name:"골든플래닛",exact:true}).waitFor();
+  await page.getByRole("link",{name:"프로젝트",exact:true}).click();
+  const projectLinks = await page.locator(".project-tile").evaluateAll(links => links.map(a=>a.getAttribute("href")!));
+  assert.equal(projectLinks.length,5);
+  for (const path of projectLinks) {
+    assert.equal((await page.goto(origin+path))?.status(),200);
+    await page.getByRole("link",{name:"이 작업의 노션 원문 ↗"}).waitFor();
+    await page.reload();
+    await page.getByRole("link",{name:"← 프로젝트 목록"}).waitFor();
+  }
+  await page.getByRole("link",{name:"AI 작업",exact:true}).click();
+  await page.getByRole("heading",{name:/AI로 만든 웹사이트와/}).waitFor();
   await page.getByRole("link",{name:"작업 모아보기",exact:true}).click();assert.equal(new URL(page.url()).pathname,"/records");
   await page.getByRole("link",{name:"해보고 배운 것",exact:true}).click();assert.equal(new URL(page.url()).pathname,"/records/experiments");
   await page.reload();assert.equal(await page.getByRole("link",{name:"해보고 배운 것",exact:true}).getAttribute("aria-current"),"page");
   assert.equal(await page.locator('a[href="/examples/workflow"]').count(),0);
-  await page.getByRole("link",{name:"이 사이트 소개",exact:true}).click();
+  await page.getByRole("link",{name:"AI 작업 소개",exact:true}).click();
   await page.getByText("글이 어떻게 생겼는지 예시로 보기",{exact:true}).click();
   await page.getByRole("link",{name:/설명용 예시 읽어보기/}).click();
   await page.getByRole("heading",{name:"긴 글을 짧게 정리하는 AI 사용법",exact:true}).waitFor();
@@ -32,15 +47,15 @@ try{
   await page.goForward();await page.getByRole("heading",{name:"긴 글을 짧게 정리하는 AI 사용법",exact:true}).waitFor();
   await page.reload();await page.getByRole("heading",{name:"긴 글을 짧게 정리하는 AI 사용법",exact:true}).waitFor();
   await page.getByRole("link",{name:"← 작업 목록으로 돌아가기"}).click();assert.equal(new URL(page.url()).pathname,"/records");
-  await page.getByRole("link",{name:"이 사이트 소개",exact:true}).click();assert.equal(new URL(page.url()).pathname,"/approach");
-  await page.goto(origin);await page.getByRole("heading",{name:/AI로 만든 웹사이트와/}).waitFor();await page.screenshot({path:"outputs/portfolio-"+port+"-desktop.png",fullPage:true});
+  await page.getByRole("link",{name:"AI 작업 소개",exact:true}).click();assert.equal(new URL(page.url()).pathname,"/approach");
+  await page.goto(origin);await page.getByRole("heading",{name:/웹사이트 이용 기록을 분석하는/}).waitFor();await page.screenshot({path:"outputs/portfolio-"+port+"-desktop.png",fullPage:true});
   await page.setViewportSize({width:390,height:844});await page.screenshot({path:"outputs/portfolio-"+port+"-mobile.png",fullPage:true});
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
   if(port===3102){
    for(const path of ["/admin","/admin/records/new","/admin/records/missing/edit","/admin/records/missing/preview"]){
     await page.goto(origin+path);await page.getByRole("heading",{name:"내 글을 쓰고 보관하는 곳"}).waitFor();
    }
-   for(const path of ["/removed-page.html","/scripts/retired.js","/records/missing","/administer","/records/missing/extra"])assert.equal((await ctx.request.get(origin+path)).status(),404);
+   for(const path of ["/projects/no-such-project","/removed-page.html","/scripts/retired.js","/records/missing","/administer","/records/missing/extra"])assert.equal((await ctx.request.get(origin+path)).status(),404);
    const legacy=await ctx.request.get(origin+"/?example=1",{maxRedirects:0});assert.equal(legacy.status(),308);assert.equal(legacy.headers().location,"/examples/workflow");
   }else{assert.equal(await page.getByRole("link",{name:"내 글 관리 ↗"}).count(),0);}
   await ctx.close();

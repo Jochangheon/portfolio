@@ -1,6 +1,6 @@
 import {ExampleLink} from "./RecordsPage";
 export default function ApproachPage(){return <section className="plain-guide">
- <span className="eyebrow">이 사이트를 소개합니다</span><h1>만든 것을 보여주고,<br/>다음에 다시 쓸 방법을 남깁니다.</h1>
+ <span className="eyebrow">AI 작업을 소개합니다</span><h1>만든 것을 보여주고,<br/>다음에 다시 쓸 방법을 남깁니다.</h1>
  <p className="lead">방문자에게는 제가 어떤 일을 할 수 있는지 보여주는 곳입니다.<br/>저에게는 했던 일을 잊지 않고 다시 꺼내 쓰는 작업 노트입니다.</p>
  <div className="guide-steps">
  {[
