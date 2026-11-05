@@ -1,8 +1,8 @@
 server {
-    listen 8443 ssl;
-    server_name 49.247.40.177;
-    ssl_certificate /srv/portfolio-ai-records/tls/live/portfolio-ip/fullchain.pem;
-    ssl_certificate_key /srv/portfolio-ai-records/tls/live/portfolio-ip/privkey.pem;
+    listen 443 ssl;
+    server_name portfolio.49.247.40.177.sslip.io;
+    ssl_certificate /srv/portfolio-ai-records/tls/live/portfolio-domain/fullchain.pem;
+    ssl_certificate_key /srv/portfolio-ai-records/tls/live/portfolio-domain/privkey.pem;
     ssl_protocols TLSv1.2 TLSv1.3;
     client_max_body_size 64m;
     location / {

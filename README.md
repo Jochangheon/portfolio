@@ -88,8 +88,8 @@ API 테스트는 관리자/CSRF 차단, 원본과 이미지 권한 분리, 미�
 - 전용 Node 런타임: `/srv/portfolio-ai-records/runtime`
 - 비밀 환경변수: `/etc/portfolio-ai-records/app.env`
 - 앱 서비스: `portfolio.service`, 비특권 사용자 `portfolio-ai`, 내부 127.0.0.1:3120
-- 공개 프록시: Nginx 전용 8443 포트
-- IP HTTPS 인증서: 별도 Certbot 환경, `portfolio-cert-renew.timer` 자동 갱신 및 Nginx reload
+- 공개 프록시: Nginx의 portfolio.49.247.40.177.sslip.io 전용 HTTPS 가상호스트 (443); 기존 기본 서버와 도메인 서비스는 유지
+- 전용 주소 HTTPS 인증서: 별도 Certbot 환경, `portfolio-cert-renew.timer` 자동 갱신 및 Nginx reload
 
 최초 비밀번호는 서버의 관리자 전용 `/etc/portfolio-ai-records/initial-password` 파일에 있습니다. 로그인 후 관리자 화면에서 변경할 수 있습니다. 기존 서비스와 기존 `/opt/portfolio/index.html`은 별도로 유지합니다.
 
