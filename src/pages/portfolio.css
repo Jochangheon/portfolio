@@ -72,7 +72,6 @@
 .career-strip div {max-width: 44rem;}
 .career-strip p {margin: .6rem 0 0; color: var(--subtle);}
 .source-line {border-top: 1px solid var(--line); padding-top: 1.2rem; font-size: .84rem; color: var(--subtle);}
-.source-link {font-size: .85rem;}
 .portfolio-heading {padding: 3.6rem 0 1.8rem;}
 .portfolio-heading > p:last-child {color: var(--subtle);}
 .projects-page {padding-top: 0;}
@@ -112,4 +111,26 @@
   .portfolio-heading {padding: 2rem 0 1rem;}
   .career-strip {gap: .7rem;}
   .source-line {gap: .7rem;}
+}
+
+.case-history-link {margin: 1.2rem 0 0; font-size: .95rem;}
+.client-history .portfolio-heading {padding-bottom: .7rem; max-width: 44rem;}
+.client-history .case-period {font-size: .85rem; margin-bottom: .4rem;}
+.history-years {gap: .8rem; margin: 0 0 2rem;}
+.history-years a {border: 1px solid var(--line); border-radius: 4px; padding: .3rem .8rem;}
+.history-years a:hover, .history-years a:focus-visible {background: #e4eee6;}
+.history-year h2 {border-top: 2px solid var(--ink); padding-top: 1.2rem; margin: 0; scroll-margin-top: 1rem;}
+.client-timeline {list-style: none; margin: 0 0 2.4rem; padding: 0;}
+.client-timeline li {display: grid; grid-template-columns: 11rem 1fr; gap: 1.2rem; padding: 1.7rem 0; border-bottom: 1px solid var(--line);}
+.client-period {color: var(--ink); font-weight: 650; font-variant-numeric: tabular-nums;}
+.client-period small {display: block; font-size: .82rem; font-weight: 400; color: var(--subtle);}
+.client-name {color: var(--subtle); font-size: .85rem; margin: 0 0 .25rem;}
+.client-work h3 {margin: 0 0 .7rem; font-size: 1.22rem; line-height: 1.5;}
+.client-work dl {display: grid; grid-template-columns: 3.4rem 1fr; gap: .4rem .6rem; margin: 0;}
+.client-work dt {color: var(--subtle); font-weight: 650; font-size: .9rem;}
+.client-work dd {margin: 0;}
+.client-work > a {display: inline-block; margin-top: .7rem; font-size: .9rem;}
+@media (max-width: 620px) {
+  .client-timeline li {grid-template-columns: 1fr; gap: .65rem; padding: 1.4rem 0;}
+  .client-period {display: flex; align-items: baseline; flex-wrap: wrap; gap: .6rem;}
 }

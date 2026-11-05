@@ -19,14 +19,40 @@ try{
   await page.goto(origin);
   await page.getByRole("heading",{name:/웹사이트 이용 기록을 분석하는/}).waitFor();
   await page.locator(".profile-portrait").evaluate((img: HTMLImageElement) => img.decode());
+  const notionLinks = page.locator('a[href*="notion.site"]');
+  assert.equal(await notionLinks.count(), 0);
   await page.getByRole("link",{name:"경력과 학력",exact:true}).click();
   await page.getByRole("heading",{name:"골든플래닛",exact:true}).waitFor();
+  assert.equal(await notionLinks.count(), 0);
+  await page.getByRole("link", {name: /고객사별 프로젝트 14건/}).click();
+  await page.getByRole("heading", {name: "고객사별 프로젝트", exact: true}).waitFor();
+  assert.equal(new URL(page.url()).pathname, "/career/goldenplanet");
+  await page.reload();
+  await page.getByRole("heading", {name: "2024년", exact: true}).waitFor();
+  const timeline = page.locator(".client-timeline li");
+  assert.equal(await timeline.count(), 14);
+  assert.deepEqual(await timeline.locator(".client-name").allTextContents(),
+    ["H’’","H’","큐텐(WISH+, 티몬)","A","B","C","D","E","F","G","H","I","J","K"].map(id => "고객사 · " + id));
+  assert.deepEqual(await timeline.locator(".client-period span").allTextContents(),
+    ["2024.09 시작","2024.08 – 2024.10","2024.06 시작","2024.04 시작","2024.04 – 2024.05","2024.02 – 2024.08",
+     "2023.10","2023.09 – 2024.03","2023.08","2023.07 시작","2023.04 – 2023.11","2023.03 – 2023.09","2023.03 시작","2023.01 – 2023.07"]);
+  assert.equal(await timeline.getByText("종료일 미기재",{exact:true}).count(), 4);
+  assert.match(await timeline.filter({hasText:"큐텐"}).innerText(), /프로젝트 중단/);
+  assert.equal(await notionLinks.count(), 0);
+  await page.setViewportSize({width:390,height:844});
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+  await page.getByRole("link", {name:"보고서 제작 과정 보기 →"}).click();
+  await page.getByRole("heading", {name:"부서별로 다른 숫자를 보여주는 보고서"}).waitFor();
+  assert.equal(await page.getByRole("link", {name:/고객사별 프로젝트 14건/}).getAttribute("href"), "/career/goldenplanet");
+  await page.setViewportSize({width:1280,height:720});
   await page.getByRole("link",{name:"프로젝트",exact:true}).click();
   const projectLinks = await page.locator(".project-tile").evaluateAll(links => links.map(a=>a.getAttribute("href")!));
   assert.equal(projectLinks.length,5);
   for (const path of projectLinks) {
     assert.equal((await page.goto(origin+path))?.status(),200);
-    await page.getByRole("link",{name:"이 작업의 노션 원문 ↗"}).waitFor();
+    await page.getByRole("link",{name:"← 프로젝트 목록"}).waitFor();
+    assert.equal(await notionLinks.count(), 0);
+    if (path === "/projects/department-film") assert.ok(await page.getByRole("link",{name:/유튜브에서 영상 보기/}).getAttribute("href"));
     await page.reload();
     await page.getByRole("link",{name:"← 프로젝트 목록"}).waitFor();
   }

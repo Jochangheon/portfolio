@@ -1,4 +1,5 @@
-import { careerSource, portfolioSource, projects, projectPath, type Project } from "../portfolio";
+import { projects, projectPath, type Project } from "../portfolio";
+import { clientProjects } from "../goldenplanet";
 import "./portfolio.css";
 
 const portrait = new URL("../assets/changheon.webp", import.meta.url).href;
@@ -13,8 +14,8 @@ function ProjectCards({ items }: { items: Project[] }) {
   )}</div>;
 }
 
-function Source({ href = portfolioSource, children = "노션 포트폴리오 원문" }) {
-  return <a className="source-link" href={href}>{children} ↗</a>;
+function ClientHistoryLink() {
+  return <a href="/career/goldenplanet">골든플래닛 고객사별 프로젝트 {clientProjects.length}건 보기 →</a>;
 }
 
 export function PersonalHome() {
@@ -34,7 +35,7 @@ export function PersonalHome() {
     <section className="career-strip"><div><h2>어디에서 일하고 배웠나요?</h2>
       <p>영남대학교에서 컴퓨터공학을 전공했고, 골든플래닛에서 고객사의 웹사이트 이용 데이터를 수집하고 분석했습니다.</p></div>
       <a href="/career">경력과 학력 자세히 보기 →</a></section>
-    <div className="source-line"><span>경력 자료 기준 · 2024년 11월 13일</span><Source/></div>
+    <div className="source-line"><span>경력 자료 기준 · 2024년 11월 13일</span></div>
   </div>;
 }
 
@@ -46,15 +47,14 @@ export function CareerPage() {
   return <article className="portfolio-page resume-page">
     <div className="portfolio-heading"><p className="profile-discipline">조창헌 포트폴리오</p><h1>경력과 학력</h1><p>2024년 11월 13일에 정리한 이력입니다.</p></div>
     <section><h2>일한 곳</h2>
-      <ResumeEntry when="2023.01 입사" title="골든플래닛">
+      <ResumeEntry when="2023.01.30 입사" title="골든플래닛">
         <p className="resume-role">Google Marketing Platform부 · Junior Manager</p>
         <ul><li>고객사와 어떤 행동을 기록할지 정하고, 웹사이트의 실제 기록과 비교해 빠지거나 중복된 항목을 확인했습니다.</li>
         <li>사람들이 어떤 순서로 페이지를 거쳤는지 볼 수 있도록 BigQuery에서 이용 기록을 시간순으로 정리했습니다.</li>
         <li>카드사와 증권사 담당자가 업무에 쓰는 보고서 화면을 만들었습니다.</li></ul>
-        <a href="/projects/team-dashboards">부서별 보고서를 만든 과정 →</a>
+        <ClientHistoryLink/>
       </ResumeEntry>
       <ResumeEntry when="2020.07 – 2020.08" title="삼성전자서비스"><p>휴대전화 수리 부품을 관리하고, 기사님의 가전제품 방문 수리를 보조했습니다.</p></ResumeEntry>
-      <Source href={careerSource}>골든플래닛 경력기술서</Source>
     </section>
     <section><h2>공부한 곳</h2>
       <ResumeEntry when="2017.03 – 2023.02" title="영남대학교 컴퓨터공학과"><p>이공계 국가장학생으로 공부해 학점 3.87/4.5로 졸업했습니다. 2020년 12월부터 2022년 2월까지 임베디드 메모리 연구실에서 활동했습니다.</p></ResumeEntry>
@@ -70,21 +70,23 @@ export function CareerPage() {
       <dt>이용 기록 수집·분석</dt><dd>Google Analytics 4로 방문자의 행동을 기록하고, SQL과 BigQuery로 원하는 기록을 찾아 분석합니다.</dd>
       <dt>보고서 만들기</dt><dd>Excel 함수로 수치를 정리하고 Looker Studio로 차트와 보고서 화면을 만듭니다.</dd>
       <dt>프로그램·영상 제작</dt><dd>Python으로 데이터를 다루고 Java로 안드로이드 앱을 개발합니다. 간단한 영상 편집과 자막 수정도 할 수 있습니다.</dd>
-    </dl></section><div className="source-line"><Source/></div>
+    </dl></section>
   </article>;
 }
 
 export function ProjectsPage() {
-  return <section className="portfolio-page projects-page"><div className="portfolio-heading"><p className="profile-discipline">조창헌 포트폴리오</p><h1>프로젝트</h1><p>회사와 학교에서 어떤 문제를 만났고, 무엇을 만들었는지 담았습니다.</p></div><ProjectCards items={projects}/></section>;
+  return <section className="portfolio-page projects-page"><div className="portfolio-heading"><p className="profile-discipline">조창헌 포트폴리오</p><h1>프로젝트</h1><p>회사와 학교에서 어떤 문제를 만났고, 무엇을 만들었는지 담았습니다.</p><ClientHistoryLink/></div><ProjectCards items={projects}/></section>;
 }
 
 export function ProjectPage({project}:{project:Project}) {
   return <article className="portfolio-page case-page">
     <a className="back-to-works" href="/projects">← 프로젝트 목록</a>
     <div className="portfolio-heading"><p className="profile-discipline">{project.context}</p><h1>{project.title}</h1>
-      <p className="case-period">{project.period}</p><p className="case-summary">{project.summary}</p></div>
+      <p className="case-period">{project.period}</p><p className="case-summary">{project.summary}</p>
+      {project.slug === "team-dashboards" && <p className="case-history-link"><ClientHistoryLink/></p>}
+    </div>
     {project.story.map(([label,body])=><section className="case-section" key={label}><h2>{label}</h2><p>{body}</p></section>)}
     {project.tools && <div className="case-tools"><strong>사용한 도구</strong> {project.tools.join(" · ")}</div>}
-    <div className="source-line">{project.video && <a href={project.video}>영남대학교 유튜브에서 영상 보기 ↗</a>}<Source href={project.source}>이 작업의 노션 원문</Source></div>
+    {project.video && <div className="source-line"><a href={project.video}>영남대학교 유튜브에서 영상 보기 ↗</a></div>}
   </article>;
 }

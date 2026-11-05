@@ -10,7 +10,7 @@ export const recordPath = (id: string) => "/records/" + encodeURIComponent(id);
 export const editorPath = (id: string, preview = false) =>
   "/admin/records/" + encodeURIComponent(id) + (preview ? "/preview" : "/edit");
 export type Route =
-  | { page: "home" | "ai" | "career" | "projects" | "approach" | "example" | "not-found" }
+  | { page: "home" | "ai" | "career" | "goldenplanet" | "projects" | "approach" | "example" | "not-found" }
   | { page: "project"; project: Project }
   | { page: "atlas"; admin: boolean }
   | { page: "records"; category: string }
@@ -21,6 +21,7 @@ export function matchRoute(path: string): Route {
   if (path === "/") return { page: "home" };
   if (path === "/ai") return { page: "ai" };
   if (path === "/career") return { page: "career" };
+  if (path === "/career/goldenplanet") return { page: "goldenplanet" };
   if (path === "/projects") return { page: "projects" };
   if (path.startsWith("/projects/")) {
     const project = projects.find(item => path === "/projects/" + item.slug);

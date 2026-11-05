@@ -1,6 +1,6 @@
 # 조창헌 개인 포트폴리오
 
-조창헌의 경력·프로젝트와 AI 작업 기록을 소개하는 한국어 포트폴리오입니다. 개인 소개는 2024년 11월 13일자 [공개 노션](https://changheony.notion.site/Changheon-s-Portfolio-f62718aaa59041588c743deab757e6b2)을 기준으로 작성했습니다. 개인 프로젝트와 출처는 `src/portfolio.ts`, 이력은 `src/pages/PortfolioPage.tsx`에서 관리합니다.
+조창헌의 경력·프로젝트와 AI 작업 기록을 소개하는 한국어 포트폴리오입니다. 개인 소개는 2024년 11월 13일자 경력 자료을 기준으로 작성했습니다. 골든플래닛 고객사별 기간과 활동은 `src/goldenplanet.ts`, 개인 프로젝트는 `src/portfolio.ts`, 이력은 `src/pages/PortfolioPage.tsx`에서 관리합니다.
 
 ## 페이지와 실행
 
@@ -8,8 +8,9 @@
 | --- | --- |
 | / | 소개와 대표 프로젝트 |
 | /career | 경력·학력·수상·활동 |
+| /career/goldenplanet | 골든플래닛 고객사별 프로젝트와 기간 |
 | /projects | 개인 프로젝트 목록 |
-| /projects/:slug | 작업별 배경·과정·결과와 노션 원문 |
+| /projects/:slug | 작업별 배경·과정·결과 |
 | /ai | AI 작업 홈 |
 | /records | 전체 공개 AI 기록 |
 | /records/projects | 프로젝트 |

@@ -6,6 +6,7 @@ import { matchRoute, recordPath } from "./lib/routes";
 import { PersonalHome, CareerPage, ProjectsPage, ProjectPage } from "./pages/PortfolioPage";
 import "./style.css";
 
+const GoldenplanetPage = lazy(() => import("./pages/GoldenplanetPage"));
 const AtlasPage = lazy(() => import("./pages/AtlasPage"));
 const AIHome = lazy(() => import("./pages/HomePage"));
 const RecordsPage = lazy(() => import("./pages/RecordsPage"));
@@ -36,6 +37,7 @@ function CurrentPage() {
   switch (route.page) {
     case "home": return <PersonalHome/>;
     case "career": return <CareerPage/>;
+    case "goldenplanet": return <GoldenplanetPage/>;
     case "projects": return <ProjectsPage/>;
     case "project": return <ProjectPage project={route.project}/>;
     case "ai":
@@ -50,13 +52,13 @@ function CurrentPage() {
 }
 
 const titles = {
-  home: "조창헌 포트폴리오", career: "경력과 학력", projects: "프로젝트", ai: "AI 작업",
+  home: "조창헌 포트폴리오", career: "경력과 학력", goldenplanet: "골든플래닛 고객사별 프로젝트", projects: "프로젝트", ai: "AI 작업",
   admin: "내 글 관리", approach: "AI 작업 소개", atlas: "작업 연결 보기", detail: "AI 작업",
   example: "AI 작업 예시", "not-found": "페이지를 찾을 수 없습니다"
 };
 
 function App() {
-  const isPersonal = ["home", "career", "projects", "project", "not-found"].includes(route.page);
+  const isPersonal = ["home", "career", "goldenplanet", "projects", "project", "not-found"].includes(route.page);
   useEffect(() => {
     const legacy = new URLSearchParams(location.search);
     if (route.page === "home" && (legacy.has("record") || legacy.get("example") === "1")) {
@@ -71,7 +73,7 @@ function App() {
     <a className="skip-link" href="#main-content">본문으로 바로가기</a>
     <header><a className="brand" href="/" aria-current={route.page === "home" ? "page" : undefined}>조창헌 포트폴리오</a>
       <nav aria-label="주 메뉴">
-        <a href="/career" aria-current={route.page === "career" ? "page" : undefined}>경력과 학력</a>
+        <a href="/career" aria-current={route.page === "career" ? "page" : route.page === "goldenplanet" ? "location" : undefined}>경력과 학력</a>
         <a href="/projects" aria-current={route.page === "projects" ? "page" : route.page === "project" ? "location" : undefined}>프로젝트</a>
         <a href="/ai" aria-current={isPersonal ? undefined : route.page === "ai" ? "page" : "location"}>AI 작업</a>
       </nav>
