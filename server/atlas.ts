@@ -2,6 +2,7 @@ import type { RecordData } from "../src/model.ts";
 import { relationshipLabels } from "../src/model.ts";
 import type { Store } from "./store.ts";
 import { publicRecord } from "../src/projection.ts";
+import { captureFor } from "./capture-meta.ts";
 export function validRelationships(value: any): boolean {
  return value===undefined || (Array.isArray(value) && value.length<=100 && value.every(x=>x &&
  /^[a-zA-Z0-9_-]{1,128}$/.test(x.targetId) && typeof x.targetId==="string" &&
@@ -17,7 +18,8 @@ export function relationshipsExist(store:Store,r:RecordData,batch=new Set<string
 export function atlas(store:Store,admin=false){
  const records=store.list(admin).map((r:any)=>admin?r:publicRecord(r));
  const ids=new Set(records.map((r:any)=>r.id));
- const nodes=records.map((r:any)=>({id:r.id,title:r.title,type:r.type,summary:r.summary,origin:r.origin,
+ const nodes=records.map((r:any)=>({id:r.id,title:r.title,type:r.type,summary:r.summary,origin:r.origin,project:r.project||"분류 전",
+  ...(admin?{capture:(()=>{const c=captureFor(store,r.id);if(!c)return undefined;const {question,detail,recap,...brief}=c;return brief;})()}:{}),
   status:admin?(r.published?"게시됨 · 수정 초안":"비공개 초안"):"공개",
   version:(store.db.prepare("SELECT revision FROM records WHERE id=?").get(r.id) as any)?.revision||0}));
  const edges:any[]=[];

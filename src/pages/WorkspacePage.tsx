@@ -67,7 +67,7 @@ export default function WorkspacePage({id,folderId}: {id?:string;folderId?:strin
         <label>폴더 위치<select value={parent} onChange={e=>setParent(e.target.value)}><option value="">맨 위</option>{folderLinks.map(f=><option key={f.id} value={f.id}>{f.label}</option>)}</select></label>
         <button disabled={busy}>폴더 만들기</button>
       </form>}
-      <div className="workspace-shortcuts"><a href="/admin/atlas">작업 연결 지도</a><a href="/admin/records/new">+ 새 글 쓰기</a><a href="/admin/settings">AI 연결·백업·설정</a><a href="/api/admin/export" download="portfolio-workspace.json">모든 기록과 파일 내려받기</a></div>
+      <div className="workspace-shortcuts"><a href="/admin/atlas">프로젝트 연결 지도</a><a href="/admin/records/new">+ 새 글 쓰기</a><a href="/admin/settings">AI 연결·백업·설정</a><a href="/api/admin/export" download="portfolio-workspace.json">모든 기록과 파일 내려받기</a></div>
       <button className="workspace-logout" onClick={()=>action(async()=>{await api("/admin/logout","POST");location.reload();})}>로그아웃</button>
       </div>
     </aside>

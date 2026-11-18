@@ -2,7 +2,7 @@
 """Private Codex turn capture. Never reads reasoning, tool outputs, or project files."""
 import argparse
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import hashlib
 import io
 import json
@@ -13,6 +13,7 @@ import sqlite3
 import subprocess
 import sys
 import portfolio
+import record_format
 
 REDACTED = "[인증정보가 포함될 수 있는 메시지는 자동 기록에서 제외했습니다.]"
 SECRET = re.compile(r"password|passwd|비밀번호|암호|api.?key|access.?token|authorization|private.?key|bearer\s|secret|ptr_[a-f0-9]{32}|sk-[\w-]{12}|gh[pousr]_[\w]{12}|github_pat_|AKIA[A-Z0-9]{12}|-----BEGIN|(?:token|토큰)\s*[:=]", re.I)
@@ -24,6 +25,8 @@ def codex_home():
 def clean(text):
     if not isinstance(text,str):
         return ""
+    if re.search(r"gAAAAA[A-Za-z0-9_=-]{60,}",text):
+        return "[보호된 원문이므로 내용을 확인할 수 없습니다.]"
     # These are injected context, not the user's own request.
     text=re.sub(r"<(environment_context|system_reminder|developer_instructions)>[\s\S]*?</\1>", "",text)
     if SECRET.search(text):
@@ -36,6 +39,9 @@ def clean(text):
 
 def plain(text, limit):
     return re.sub(r"\s+"," ",re.sub(r"[#*\x60]","",text)).strip()[:limit]
+
+def date_label(created):
+    return datetime.fromisoformat(str(created).replace("Z","+00:00")).astimezone(timezone(timedelta(hours=9))).date().isoformat()
 
 def text_content(value):
     if isinstance(value,str):
@@ -55,7 +61,7 @@ def index_titles(home):
                 pass
     return result
 
-def make_payloads(thread, turn, title, project, users, answer, created=None, status="completed"):
+def make_payloads(thread, turn, title, project, users, answer, created=None, status="completed", capture=None):
     if not IDENT.fullmatch(thread) or not IDENT.fullmatch(turn):
         raise ValueError("Invalid Codex identifiers")
     users=[clean(x) for x in users if isinstance(x,str)]
@@ -70,14 +76,20 @@ def make_payloads(thread, turn, title, project, users, answer, created=None, sta
     project=plain(clean(project),80) or "Codex"
     request="\n\n".join(users) or "(요청 내용 없음)"
     result=answer or ("작업이 중단되어 최종 답변이 없습니다." if status=="interrupted" else "최종 답변이 남아 있지 않습니다.")
-    summary=plain(result,500)
+    summary=record_format.recap(request,result,status)
     headline=plain(next((x for x in users if x!=REDACTED),title),130)
-    body=f"# {title}\n\n작업 날짜: {created}\n\n## 무엇을 부탁했나요?\n\n{request}\n\n## AI가 남긴 결과\n\n{result}\n\n## 기록 범위\n\n사용자의 요청과 최종 답변을 비공개로 보관했습니다. 결과 내용은 당시 AI의 보고이며, 실행 성공을 별도로 검증했다는 뜻은 아닙니다. 원본 파일, 도구 출력, 내부 추론은 수집하지 않습니다.\n"
-    # Preserve long conversations in ordered parts rather than truncate them.
-    parts=[body[i:i+80000] for i in range(0,len(body),80000)]
-    return [{"sourceKey":f"codex/{thread}/{turn}/{i}","title":f"{str(created)[:10]} · {headline}"+(f" ({i+1}/{len(parts)})" if len(parts)>1 else ""),
-             "threadTitle":title,"project":project,"body":part,"summary":summary or "Codex 작업 기록",
-             "created":created,"status":status} for i,part in enumerate(parts)]
+    # Split question and answer separately, retaining all text and the same three sections.
+    count=max((len(request)+35000-1)//35000,(len(result)+45000-1)//45000,1)
+    output=[]
+    for i in range(count):
+        q=request[i*35000:(i+1)*35000] or "(앞부분에 질문이 있습니다.)"
+        detail=result[i*45000:(i+1)*45000] or "(답변 내용 없음)"
+        output.append({"sourceKey":f"codex/{thread}/{turn}/{i}","title":f"{date_label(created)} · {headline}"+(f" ({i+1}/{count})" if count>1 else ""),
+          "threadTitle":title,"project":project,"body":record_format.body(q,detail,summary),"summary":plain(summary,900),
+          "question":q,"detail":detail,"recap":summary,"formatVersion":2,
+          "capture":{"threadId":thread,"turnId":turn,"rootThreadId":thread,"mode":"main",**(capture or {})},
+          "created":created,"status":status})
+    return output
 
 @contextmanager
 def lines(path):
@@ -93,28 +105,95 @@ def lines(path):
         with path.open(encoding="utf-8") as f:
             yield f
 
-def parse_transcript(path, titles):
+def read_catalog(home):
+    catalog={}
+    paths=sorted({x for root in ("sessions","archived_sessions") for x in (home/root).rglob("*.jsonl*") if x.name.endswith((".jsonl",".jsonl.zst"))})
+    for path in paths:
+        if path.is_symlink():continue
+        try:
+            with lines(path) as f:
+                m=json.loads(next(f)).get("payload",{})
+            source=m.get("source")
+            spawn=source.get("subagent",{}).get("thread_spawn") if isinstance(source,dict) else None
+            if not spawn and (not isinstance(source,str) or m.get("thread_source") not in (None,"user","onboarding_checklist","automation")):continue
+            if not IDENT.fullmatch(m.get("id","")):continue
+            catalog[m["id"]]={"path":path,"cwd":m.get("cwd",""),"spawn":spawn}
+        except (OSError,ValueError,RuntimeError,StopIteration):continue
+    return catalog
+
+def capture_context(thread,catalog,titles):
+    item=catalog.get(thread,{})
+    spawn=item.get("spawn")
+    root=thread;seen=set()
+    while root in catalog and catalog[root].get("spawn") and root not in seen:
+        seen.add(root);root=catalog[root]["spawn"].get("parent_thread_id",root)
+    root_item=catalog.get(root,item);title=titles.get(root,"Codex 작업")
+    project=record_format.project_name(root_item.get("cwd",""),title)
+    meta={"mode":"subagent" if spawn else "main","rootThreadId":root}
+    if spawn:
+        meta.update({"parentThreadId":spawn["parent_thread_id"],"agentName":clean(spawn.get("agent_nickname") or "서브에이전트"),
+                     "agentRole":clean(spawn.get("agent_role") or spawn.get("agent_path","").rsplit("/",1)[-1])[:100]})
+        roles={"domestic":"국내 사례 조사","technical":"기술 검토","international":"해외 사례 조사","content_review":"내용 검토","report_review":"보고서 검토","prompt_settings":"AI 요청 설정","results_analysis":"결과 분석","review_deployment":"화면 검토·배포 확인"}
+        meta["agentRole"]=roles.get(meta["agentRole"],meta["agentRole"])
+        title="서브 작업 · "+meta["agentRole"]+" · "+meta["agentName"]
+    return meta,title,project
+
+def timestamp(value):
+    if isinstance(value,(int,float)):return value
+    try:return datetime.fromisoformat(value.replace("Z","+00:00")).timestamp()
+    except (ValueError,AttributeError):return 0
+
+def assigned_question(parent,task,parent_turn,started,catalog):
+    entry=catalog.get(parent,{})
+    if "path" not in entry:return ""
+    if "assignments" not in entry:
+        found=[];current=None
+        with lines(entry["path"]) as source:
+            for line in source:
+                try:x=json.loads(line)
+                except ValueError:continue
+                p=x.get("payload",{})
+                if x.get("type")=="event_msg" and p.get("type")=="task_started":current=p.get("turn_id")
+                # Only the human-visible delegation instruction is read from tool arguments.
+                # Tool output and all other tool arguments remain excluded.
+                if x.get("type")!="response_item" or p.get("type")!="function_call" or p.get("namespace")!="collaboration" or p.get("name") not in ("spawn_agent","followup_task"):continue
+                try:a=json.loads(p.get("arguments","{}"))
+                except ValueError:continue
+                target=a.get("task_name") or a.get("target")
+                if isinstance(target,str) and isinstance(a.get("message"),str):
+                    found.append({"turn":current,"target":target.rsplit("/",1)[-1],"at":timestamp(x.get("timestamp")),"message":clean(a["message"])})
+        entry["assignments"]=found
+    matches=[x for x in entry["assignments"] if x["target"]==task and x["turn"]==parent_turn and x["at"]<=timestamp(started)+2]
+    return max(matches,key=lambda x:x["at"])["message"] if matches else ""
+
+def parse_transcript(path, titles, catalog=None):
     """Whitelist only userMessage + final_answer from item_completed or response_item."""
-    meta=None;turns={};current=None;seen=set()
+    meta=None;turns={};current=None;seen=set();spawn=None
     with lines(path) as source:
         for line in source:
             try: item=json.loads(line)
             except ValueError: continue
             kind=item.get("type");p=item.get("payload",{})
             if kind=="session_meta":
-                # Exclude guardian/subagent/internal tasks, even when they share a parent session.
-                if not isinstance(p.get("source"),str) or p.get("thread_source") not in (None,"user","onboarding_checklist","automation"):
+                if meta is not None:continue  # Forked history can contain the parent's session_meta.
+                source=p.get("source")
+                spawn=source.get("subagent",{}).get("thread_spawn") if isinstance(source,dict) else None
+                # Only delegated work is included; guardian/internal approval sessions stay excluded.
+                if not spawn and (not isinstance(source,str) or p.get("thread_source") not in (None,"user","onboarding_checklist","automation")):
                     return []
-                meta={"id":p.get("id"),"cwd":p.get("cwd","")}
+                meta={"id":p.get("id"),"cwd":p.get("cwd",""),"spawn":spawn,"path":path}
             if not meta: continue
             if kind=="event_msg" and p.get("type")=="task_started":
                 current=p.get("turn_id")
                 if current and IDENT.fullmatch(current):
-                    turns.setdefault(current,{"users":[],"answer":"","created":item.get("timestamp"),"done":False,"status":"completed"})
+                    attribution=p.get("turn_attribution") or {}
+                    owned=not spawn or attribution.get("initiating_agent_path")==spawn.get("agent_path","").rsplit("/",1)[0]
+                    turns.setdefault(current,{"users":[],"answer":"","created":item.get("timestamp"),"done":False,"status":"completed",
+                        "owned":owned,"parentTurnId":attribution.get("parent_turn_id"),"started":p.get("started_at") or item.get("timestamp")})
             if kind=="turn_context" and not current:
                 current=p.get("turn_id")
                 if current and IDENT.fullmatch(current):
-                    turns.setdefault(current,{"users":[],"answer":"","created":item.get("timestamp"),"done":False,"status":"completed"})
+                    turns.setdefault(current,{"users":[],"answer":"","created":item.get("timestamp"),"done":False,"status":"completed","owned":not spawn})
             if kind=="event_msg" and p.get("type") in ("task_complete","turn_aborted"):
                 tid=p.get("turn_id",current)
                 if tid in turns:
@@ -123,9 +202,16 @@ def parse_transcript(path, titles):
                     # Final message is an explicit, user-visible field; never a compaction summary.
                     if p.get("last_agent_message"):t["answer"]=p["last_agent_message"]
                 current=None
+            if kind=="response_item" and p.get("type")=="agent_message" and spawn and current in turns and turns[current]["owned"]:
+                parent_path=spawn.get("agent_path","").rsplit("/",1)[0]
+                if p.get("recipient")==spawn.get("agent_path") and p.get("author")==parent_path:
+                    assigned=text_content(p.get("content")).split("Payload:\n",1)[-1]
+                    if assigned:turns[current]["users"].append(assigned)
+                continue
             event_item=kind=="event_msg" and p.get("type")=="item_completed"
             if event_item:
                 msg=p.get("item",{});tid=p.get("turn_id",current);role=msg.get("type")
+                if spawn and p.get("thread_id")!=meta["id"]:continue
                 user=role=="UserMessage";final=role=="AgentMessage" and msg.get("phase")=="final_answer"
                 text=text_content(msg.get("content",msg.get("text","")))
             elif kind=="response_item" and p.get("type")=="message":
@@ -133,7 +219,8 @@ def parse_transcript(path, titles):
                 final=msg.get("role")=="assistant" and msg.get("phase")=="final_answer"
                 text=text_content(msg.get("content"))
             else:continue
-            if not (user or final) or tid not in turns:continue
+            if not (user or final) or tid not in turns or not turns[tid]["owned"]:continue
+            if spawn and user:continue  # Parent user history is context, not a new assignment.
             key=(tid,"u" if user else "a",hashlib.sha256(text.encode()).hexdigest())
             if key in seen:continue
             seen.add(key)
@@ -142,10 +229,16 @@ def parse_transcript(path, titles):
     if not meta:return []
     result=[]
     for tid,t in turns.items():
-        if t["done"]:
-            project=re.split(r"[\\/]",meta["cwd"].rstrip("\\/"))[-1]
-            result.extend(make_payloads(meta["id"],tid,titles.get(meta["id"],"Codex 작업"),project,
-                t["users"],t["answer"],t["created"],t["status"]))
+        if t["done"] and t["owned"]:
+            context,title,project=capture_context(meta["id"],catalog or {meta["id"]:meta},titles)
+            if t.get("parentTurnId"):context["parentTurnId"]=t["parentTurnId"]
+            if spawn and not t["users"]:
+                question=assigned_question(spawn["parent_thread_id"],spawn.get("agent_path","").rsplit("/",1)[-1],t.get("parentTurnId"),t.get("started"),catalog or {})
+                if question:t["users"]=[question]
+            if spawn and (not t["users"] or all("보호된 원문" in q for q in t["users"])):
+                t["users"]=[context.get("agentRole","지정받은 역할")+"을 맡은 서브 작업입니다. 자세한 지시 원문은 보호되어 있어 확인하지 못했습니다."]
+            result.extend(make_payloads(meta["id"],tid,title,project,
+                t["users"],t["answer"],t["created"],t["status"],context))
     return result
 
 def connect_state(directory):
@@ -153,11 +246,47 @@ def connect_state(directory):
     db=sqlite3.connect(directory/"state.sqlite",timeout=20)
     db.execute("PRAGMA journal_mode=WAL")
     db.execute("CREATE TABLE IF NOT EXISTS queue(site TEXT,key TEXT,payload TEXT,status TEXT DEFAULT 'pending',result TEXT,error TEXT,PRIMARY KEY(site,key))")
+    db.execute("CREATE TABLE IF NOT EXISTS prepared(thread TEXT,turn TEXT,data TEXT,PRIMARY KEY(thread,turn))")
     return db
 
-def enqueue(db,site,payloads):
+def prepare(db,home,path):
+    thread=os.environ.get("CODEX_THREAD_ID","")
+    catalog=read_catalog(home)
+    if not IDENT.fullmatch(thread) or thread not in catalog:
+        raise ValueError("현재 Codex 대화를 확인할 수 없습니다. 다른 대화를 추측해서 저장하지 않습니다.")
+    turn=None
+    with lines(catalog[thread]["path"]) as source:
+        for line in source:
+            try:x=json.loads(line)
+            except ValueError:continue
+            p=x.get("payload",{})
+            if x.get("type")=="event_msg" and p.get("type")=="task_started":turn=p.get("turn_id")
+    if not turn or not IDENT.fullmatch(turn):raise ValueError("현재 작업을 확인할 수 없습니다.")
+    value=json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(value,dict) or not isinstance(value.get("question"),str) or not isinstance(value.get("recap"),str):
+        raise ValueError("question과 recap이 필요합니다.")
+    value={"question":clean(value["question"]),"recap":clean(value["recap"])}
+    if not 1<=len(value["question"])<=35000 or not 1<=len(value["recap"])<=1000:raise ValueError("정리 길이를 확인하세요.")
+    db.execute("INSERT INTO prepared VALUES(?,?,?) ON CONFLICT(thread,turn) DO UPDATE SET data=excluded.data",(thread,turn,json.dumps(value,ensure_ascii=False)));db.commit()
+    return {"prepared":True,"mode":"subagent" if catalog[thread].get("spawn") else "main"}
+
+def apply_prepared(db,payloads):
+    for p in payloads:
+        _,thread,turn,part=p["sourceKey"].split("/")
+        row=db.execute("SELECT data FROM prepared WHERE thread=? AND turn=?",(thread,turn)).fetchone()
+        if not row:continue
+        value=json.loads(row[0])
+        p["question"]=value["question"] if part=="0" else "(앞부분에 정리한 질문이 있습니다.)"
+        p["recap"]=value["recap"];p["summary"]=plain(value["recap"],900)
+        p["body"]=record_format.body(p["question"],p["detail"],p["recap"])
+        p["title"]=date_label(p["created"])+" · "+plain(value["question"],130)+(f" (이어지는 내용 {part})" if part!="0" else "")
+    return payloads
+
+def enqueue(db,site,payloads,refresh=False):
     before=db.total_changes
     for p in payloads:
+        if refresh:
+            db.execute("UPDATE queue SET payload=?,status='pending',error=NULL WHERE site=? AND key=?",(json.dumps(p,ensure_ascii=False),site,p["sourceKey"]))
         db.execute("INSERT INTO queue(site,key,payload) VALUES(?,?,?) ON CONFLICT(site,key) DO UPDATE SET payload=excluded.payload WHERE queue.status='pending' AND queue.payload<>excluded.payload",(site,p["sourceKey"],json.dumps(p,ensure_ascii=False)))
     db.commit()
     return db.total_changes-before
@@ -196,21 +325,31 @@ def notify(raw,home,db,site):
     event=json.loads(raw)
     if event.get("type")!="agent-turn-complete":return 0
     thread=event.get("thread-id","");turn=event.get("turn-id","")
-    # Internal subagents are not user conversations. Known user chats live in the index.
     titles=index_titles(home)
-    if thread not in titles:return 0
-    project=re.split(r"[\\/]",event.get("cwd","").rstrip("\\/"))[-1]
-    payloads=make_payloads(thread,turn,titles[thread],project,event.get("input-messages",[]),event.get("last-assistant-message",""))
-    added=enqueue(db,site,payloads);flush(db,site,5)
+    catalog=read_catalog(home)
+    if thread not in titles and thread not in catalog:return 0
+    if thread not in catalog:catalog[thread]={"cwd":event.get("cwd","")}
+    context,title,project=capture_context(thread,catalog,titles)
+    payloads=[]
+    if context["mode"]=="main":
+        payloads=make_payloads(thread,turn,title,project,event.get("input-messages",[]),event.get("last-assistant-message",""),capture=context)
+    # Collect completed delegated work under its real parent, without copying inherited turns.
+    for child,entry in catalog.items():
+        child_context,_,_=capture_context(child,catalog,titles)
+        if entry.get("spawn") and child_context["rootThreadId"]==context["rootThreadId"]:
+            payloads.extend(parse_transcript(entry["path"],titles,catalog))
+    added=enqueue(db,site,apply_prepared(db,payloads));flush(db,site,20)
     return added
 
 def main():
     p=argparse.ArgumentParser(description="Codex 작업을 비공개로 보관합니다.")
-    p.add_argument("command",choices=["backfill","flush","status","notify"])
+    p.add_argument("command",choices=["backfill","flush","status","notify","prepare"])
     p.add_argument("notification",nargs="?")
     p.add_argument("--home",type=Path,default=codex_home())
     p.add_argument("--state",type=Path)
     p.add_argument("--titles-file",type=Path,help="Optional thread ID-to-title map for historical chats")
+    p.add_argument("--refresh",action="store_true",help="Send the structured format again; server preserves edited notes")
+    p.add_argument("--note-json",type=Path,help="A concise question and recap written from the current task context")
     p.add_argument("--url",default=portfolio.DEFAULT_URL)
     p.add_argument("--limit",type=int,default=1000)
     args=p.parse_args();site=portfolio.origin(args.url)
@@ -219,14 +358,17 @@ def main():
         if args.command=="notify":
             notify(args.notification,args.home,db,site)
             return
+        if args.command=="prepare":
+            if not args.note_json:raise ValueError("--note-json 파일이 필요합니다.")
+            print(json.dumps(prepare(db,args.home,args.note_json),ensure_ascii=False))
+            return
         if args.command=="backfill":
             titles=index_titles(args.home);total=0;failed=0
             if args.titles_file:
                 titles.update(json.loads(args.titles_file.read_text(encoding="utf-8")))
-            paths=sorted({x for root in ("sessions","archived_sessions") for x in (args.home/root).rglob("*.jsonl*") if x.name.endswith((".jsonl",".jsonl.zst"))})
-            for path in paths:
-                if path.is_symlink():continue
-                try:total+=enqueue(db,site,parse_transcript(path,titles))
+            catalog=read_catalog(args.home)
+            for entry in catalog.values():
+                try:total+=enqueue(db,site,apply_prepared(db,parse_transcript(entry["path"],titles,catalog)),args.refresh)
                 except (OSError,ValueError,RuntimeError):failed+=1
             print(json.dumps({"queued":total,"unreadableFiles":failed},ensure_ascii=False),flush=True)
         if args.command in ("backfill","flush"):flush(db,site,args.limit)

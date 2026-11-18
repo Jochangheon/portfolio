@@ -51,6 +51,8 @@ try{
  await page.getByRole("link",{name:"관리자 로그인",exact:true}).waitFor();
  await ctx.addCookies([{name:"session",value:sid,domain:"localhost",path:"/",httpOnly:true,sameSite:"Lax"}]);
  await page.reload();
+ await page.getByRole("heading",{name:"프로젝트 연결 지도",exact:true}).waitFor();
+ await page.getByRole("button",{name:"기록 사이의 개별 연결 보기",exact:true}).click();
  await page.getByText("3개 작업 · 1개 연결",{exact:true}).waitFor();
  await page.getByLabel("제목으로 찾기",{exact:true}).fill("비공개");
  await page.locator(".atlas-list").getByRole("button",{name:/비공개 실험/}).click();

@@ -6,9 +6,9 @@ import { folderOptions, type Folder, type Note, type WorkspaceEntry } from "../w
 import type { RecordData } from "../model";
 import Links from "../components/Links";
 
-type Draft = {title:string; type:string; links:string; assets:string[]; body:string; folderId:string|null; pinned:boolean; archived:boolean};
+type Draft = {title:string; project:string; type:string; links:string; assets:string[]; body:string; folderId:string|null; pinned:boolean; archived:boolean};
 type Asset = {id:string; name:string; size:number; mime:string; analysis:string};
-type Loaded = {record:RecordData; note:Note; assets:Asset[]; published:boolean};
+type Loaded = {record:RecordData; note:Note; assets:Asset[]; published:boolean;capture?:{mode:string;agentName?:string;agentRole?:string;status:string}};
 
 export default function WorkspaceEditor({id,folders,onSaved}:{id:string;folders:Folder[];onSaved:(values:Partial<WorkspaceEntry>)=>void}) {
   const [loaded,setLoaded] = useState<Loaded>();
@@ -24,7 +24,7 @@ export default function WorkspaceEditor({id,folders,onSaved}:{id:string;folders:
 }
 
 function NoteEditor({id,loaded,folders,onSaved}:{id:string;loaded:Loaded;folders:Folder[];onSaved:(values:Partial<WorkspaceEntry>)=>void}) {
-  const initial: Draft = {title:loaded.record.title,type:loaded.record.type,links:loaded.record.links,assets:loaded.record.assets,
+  const initial: Draft = {title:loaded.record.title,project:loaded.record.project,type:loaded.record.type,links:loaded.record.links,assets:loaded.record.assets,
     body:loaded.note.body,folderId:loaded.note.folderId,pinned:loaded.note.pinned,archived:loaded.note.archived};
   const [draft,setDraft] = useState(initial);
   const latest = useRef(initial), saved = useRef(JSON.stringify(initial)), version = useRef(loaded.note.version);
@@ -35,7 +35,7 @@ function NoteEditor({id,loaded,folders,onSaved}:{id:string;loaded:Loaded;folders
   const [uploading,setUploading] = useState(false);
   const [uploadMessage,setUploadMessage] = useState("");
   const [assets,setAssets] = useState(loaded.assets);
-  const [preview,setPreview] = useState(false);
+  const [preview,setPreview] = useState(!!loaded.capture);
   const textArea = useRef<HTMLTextAreaElement>(null);
   const [info,setInfo] = useState("");
   function change(values:Partial<Draft>) {
@@ -127,15 +127,17 @@ function NoteEditor({id,loaded,folders,onSaved}:{id:string;loaded:Loaded;folders
     {error&&<div className="workspace-error" role="alert"><p>{error}</p><button onClick={()=>persist().catch(()=>{})}>저장 다시 시도</button><button onClick={download}>현재 메모 내려받기</button><button onClick={()=>location.reload()}>최신 기록 다시 열기</button></div>}
     <label className="note-title"><span className="sr-only">기록 제목</span><input aria-label="기록 제목" placeholder="제목 없는 기록" maxLength={180} value={draft.title} onChange={e=>change({title:e.target.value})}/></label>
     <div className="note-properties">
+      <label>프로젝트<input value={draft.project} maxLength={80} placeholder="어떤 프로젝트의 작업인가요?" onChange={e=>change({project:e.target.value})}/></label>
       <label>폴더<select value={draft.folderId||""} onChange={e=>change({folderId:e.target.value||null})}><option value="">폴더 없음</option>{folderOptions(folders).map(f=><option key={f.id} value={f.id}>{f.label}</option>)}</select></label>
       <label>종류<select value={draft.type} onChange={e=>change({type:e.target.value})}><option value="프로젝트">만든 작업</option><option value="실험 노트">메모·실험</option><option value="스킬·워크플로">스킬·사용법</option></select></label>
       <button className={draft.pinned?"note-pinned":""} aria-pressed={draft.pinned} onClick={()=>change({pinned:!draft.pinned})}>{draft.pinned?"★ 즐겨찾기":"☆ 즐겨찾기"}</button>
     </div>
-    <div className="note-body-heading"><h1>작업 메모</h1><button aria-pressed={preview} onClick={()=>setPreview(!preview)}>{preview?"계속 쓰기":"읽는 모습"}</button></div>
+    {loaded.capture&&<div className="capture-context"><strong>{loaded.capture.mode==="subagent"?"서브 작업 · "+(loaded.capture.agentRole||loaded.capture.agentName||"맡은 일"):"메인 작업"}</strong><span>{loaded.capture.status==="interrupted"?"중단된 작업":"답변이 남은 작업"}</span><a href={"/admin/atlas?project="+encodeURIComponent(draft.project)}>프로젝트 연결 지도 →</a></div>}
+    <div className="note-body-heading"><h1>{loaded.capture?"질문과 답변 정리":"작업 메모"}</h1><button aria-pressed={preview} onClick={()=>setPreview(!preview)}>{preview?"계속 쓰기":"읽는 모습"}</button></div>
     <p className="workspace-hint">AI에게 한 요청, 답변, 시행착오를 자유롭게 남기세요. 이 메모는 나만 볼 수 있어요.</p>
     {!draft.body&&<div className="note-starters"><span>무엇부터 적을까요?</span>
       <button onClick={()=>change({body:"## 하려던 일\n\n\n## AI에게 부탁한 내용\n\n\n## 내가 확인하고 바꾼 점\n\n\n## 결과와 다음 할 일\n\n"})}>작업 과정</button>
-      <button onClick={()=>change({body:"## AI에게 한 요청\n\n\n## 받은 답변\n\n\n## 써 보고 느낀 점\n\n"})}>대화 기록</button>
+      <button onClick={()=>change({body:"## 질문\n\n\n## 상세내용\n\n\n## 정리\n\n"})}>질문·답변·정리</button>
       <button onClick={()=>change({body:"## 이 방법을 쓰는 때\n\n\n## AI가 지켜야 할 설명\n\n\n## 사용한 파일과 관련 작업\n\n\n## 확인한 결과\n\n"})}>스킬·사용법</button>
     </div>}
     {preview?<div className="note-markdown"><Markdown components={{img:({alt})=><span>[외부 이미지 · {alt}]</span>,a:({href,children})=><a href={href} target="_blank" rel="noreferrer">{children}</a>}}>{draft.body || "아직 메모가 없습니다."}</Markdown></div>:<>

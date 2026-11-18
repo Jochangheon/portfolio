@@ -5,7 +5,9 @@ import {typeName} from "../copy";
 import {api} from "../lib/api";
 import {editorPath,recordPath} from "../lib/routes";
 import {relationshipLabels} from "../model";
-type ANode={id:string;title:string;type:string;summary:string;origin:string;status:string;version:number};
+import ProjectGraph from "../components/ProjectGraph";
+import type {CaptureInfo} from "../project-graph";
+type ANode={id:string;title:string;type:string;summary:string;origin:string;status:string;version:number;project?:string;capture?:CaptureInfo};
 type AEdge={id:string;source:string;target:string;kind:string;evidence:string;note:string;version?:number;run?:string};
 type Atlas={nodes:ANode[];edges:AEdge[]};
 const colors:Record<string,string>={"프로젝트":"#2b6f62","스킬·워크플로":"#725dc0","실험 노트":"#b9712d"};
@@ -38,6 +40,7 @@ function positions(nodes:ANode[],edges:AEdge[]){
  return new Map(points.map(p=>[p.id,{x:p.x,y:p.y}]));
 }
 export default function AtlasPage({admin=false}:{admin?:boolean}){
+ const [projectView,setProjectView]=useState(admin);
  const [viewportWidth,setViewportWidth]=useState(window.innerWidth);
  useEffect(()=>{let timer=0;const resize=()=>{clearTimeout(timer);timer=window.setTimeout(()=>setViewportWidth(window.innerWidth),100);};window.addEventListener("resize",resize);return()=>{window.removeEventListener("resize",resize);clearTimeout(timer);};},[]);
  const [data,setData]=useState<Atlas>(),[error,setError]=useState(""),[query,setQuery]=useState(""),[type,setType]=useState("전체"),[selected,setSelected]=useState(""),[edgeId,setEdgeId]=useState(""),[focus,setFocus]=useState(false),[example,setExample]=useState(false);
@@ -52,7 +55,9 @@ export default function AtlasPage({admin=false}:{admin?:boolean}){
  const nodes=visible.map(n=>({id:n.id,position:pos.get(n.id)!,data:{label:<div className="atlas-node"><small style={{color:colors[n.type]}}>{typeName(n.type)}</small><strong>{n.title}</strong><span>{statusName(n.status)}</span></div>},style:{width:235,borderColor:colors[n.type],borderWidth:selected===n.id?3:1,opacity:matches(n)?1:0.22,borderRadius:14,background:"#fff"},ariaLabel:n.title,selected:selected===n.id}));
  const edges=visibleEdges.map(e=>({...e,label:label(e.kind),type:"default",style:{stroke:e.evidence==="proposed"?"#8e97a8":"#54677f",strokeWidth:edgeId===e.id?3:1.5,strokeDasharray:e.evidence==="proposed"?"6 5":undefined},markerEnd:{type:MarkerType.ArrowClosed,color:"#63748b"},interactionWidth:28,ariaLabel:label(e.kind)+" 관계",labelStyle:{fontSize:11},labelBgPadding:[6,4] as [number,number]}));
  const pick=(id:string)=>{setSelected(id);setEdgeId("");};
+ if(admin&&projectView)return <section className="atlas-page"><div className="section-title"><div><span className="eyebrow">내 작업을 한눈에</span><h1>프로젝트 연결 지도</h1><p>프로젝트 안에 메인 작업과 서브 작업을 묶어 두었습니다. 이 지도는 로그인한 관리자만 볼 수 있습니다.</p></div><button onClick={()=>setProjectView(false)}>기록 사이의 개별 연결 보기</button></div>{error?<div role="alert">{error}<a href="/workspace">관리자 로그인</a></div>:!data?<p role="status">작업을 모으는 중…</p>:<ProjectGraph records={data.nodes}/>}</section>;
  return <section className="atlas-page">
+ {admin&&<button onClick={()=>setProjectView(true)}>프로젝트별로 모아 보기</button>}
  <div className="section-title"><div><span className="eyebrow">작업을 연결해서 보기</span><h1>{admin?"내 작업은 이렇게 이어져요":"작업은 이렇게 이어져요"}</h1><p>어떤 것을 만들 때 어떤 AI 사용법을 썼는지 선으로 이어 봤어요. 작업 이름을 누르면 소개를 볼 수 있습니다.</p></div><a className="button" href={admin?"/admin":"/records"}>{admin?"내 글 관리":"작업 목록"} →</a></div>
  {admin&&<p className="notice">여기에는 나만 보는 글도 나옵니다. 다른 사람에게는 공개한 작업과 공개하기로 고른 연결만 보여요.</p>}
  {error?<div className="panel" role="alert"><p>{error}</p>{admin&&<a className="button primary" href="/admin">관리자 로그인</a>}<button onClick={()=>location.reload()}>다시 시도</button></div>:!data?<p role="status">작업의 연결을 불러오는 중…</p>:<>

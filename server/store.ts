@@ -15,6 +15,7 @@ export function createStore(dir: string) {
  CREATE INDEX IF NOT EXISTS login_attempts_ip ON login_attempts(ip);
  CREATE TABLE IF NOT EXISTS integration_tokens(id TEXT PRIMARY KEY,label TEXT NOT NULL,hash TEXT NOT NULL UNIQUE,created INTEGER NOT NULL,expires INTEGER NOT NULL,revoked INTEGER NOT NULL DEFAULT 0,last_used INTEGER);
  CREATE TABLE IF NOT EXISTS ingestions(source_key TEXT PRIMARY KEY,record_id TEXT NOT NULL,last_hash TEXT NOT NULL,updated INTEGER NOT NULL);
+ CREATE TABLE IF NOT EXISTS codex_notes(record_id TEXT PRIMARY KEY REFERENCES records(id),metadata TEXT NOT NULL);
  CREATE TABLE IF NOT EXISTS workspace_folders(id TEXT PRIMARY KEY,name TEXT NOT NULL,parent_id TEXT REFERENCES workspace_folders(id));
  CREATE TABLE IF NOT EXISTS workspace_notes(record_id TEXT PRIMARY KEY REFERENCES records(id),folder_id TEXT REFERENCES workspace_folders(id),body TEXT NOT NULL DEFAULT '',pinned INTEGER NOT NULL DEFAULT 0,archived INTEGER NOT NULL DEFAULT 0,updated TEXT NOT NULL DEFAULT '',version INTEGER NOT NULL DEFAULT 0);
  INSERT OR IGNORE INTO workspace_notes(record_id) SELECT id FROM records;

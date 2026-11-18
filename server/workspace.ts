@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import type { Store } from "./store.ts";
 import { blank } from "../src/model.ts";
 import type { Note } from "../src/workspace.ts";
+import { captureFor } from "./capture-meta.ts";
 
 export function noteFor(store: Store, id: string): Note | undefined {
   const row: any = store.db.prepare("SELECT * FROM workspace_notes WHERE record_id=?").get(id);
@@ -18,7 +19,7 @@ export function registerWorkspace(app: express.Express, store: Store) {
       const text = [note.body, r.summary, r.problem, r.humanRole, r.aiRole, r.design, r.validation, r.links].join("\n");
       return {id:r.id, title:r.title, type:r.type, published:r.published, revision:r.revision,
         folderId:note.folderId, pinned:note.pinned, archived:note.archived, updated:note.updated,
-        excerpt:(note.body || r.summary || r.design).slice(0, 160),
+        project:r.project,capture:(()=>{const c=captureFor(store,r.id);return c?{mode:c.mode,agentName:c.agentName}:undefined;})(),excerpt:(r.summary || note.body || r.design).slice(0, 160),
         searchText:[r.title,r.type,r.project,text].join("\n").toLocaleLowerCase()};
     });
     res.json({folders:folders(), pages});
@@ -58,14 +59,14 @@ export function registerWorkspace(app: express.Express, store: Store) {
     const id = req.params.id as string, record = store.get(id,true);
     if (!record) return res.status(404).json({error:"기록을 찾을 수 없습니다."});
     const status: any = db.prepare("SELECT published,revision FROM records WHERE id=?").get(id);
-    res.json({record,note:noteFor(store,id),published:!!status.published,revision:status.revision,
+    res.json({record,note:noteFor(store,id),capture:captureFor(store,id),published:!!status.published,revision:status.revision,
       assets:record.assets.map(asset=>db.prepare("SELECT id,name,mime,size,analysis FROM assets WHERE id=?").get(asset)).filter(Boolean)});
   });
   app.put("/api/admin/workspace/pages/:id", (req, res) => {
     const id = req.params.id as string, r = store.get(id,true);
     if (!r) return res.status(404).json({error:"기록을 찾을 수 없습니다."});
     const b = req.body || {};
-    if (!Number.isInteger(b.version) || typeof b.title !== "string" || !b.title.trim() || b.title.length > 180 ||
+    if ((b.project!==undefined&&(typeof b.project!=="string"||b.project.length>80)) || !Number.isInteger(b.version) || typeof b.title !== "string" || !b.title.trim() || b.title.length > 180 ||
       typeof b.body !== "string" || b.body.length > 100000 || typeof b.links !== "string" || b.links.length > 100000 ||
       !["프로젝트","실험 노트","스킬·워크플로"].includes(b.type) || !folderExists(b.folderId) ||
       typeof b.pinned !== "boolean" || typeof b.archived !== "boolean" ||
@@ -77,7 +78,7 @@ export function registerWorkspace(app: express.Express, store: Store) {
         db.exec("ROLLBACK");
         return res.status(409).json({error:"다른 화면에서 이 기록을 수정했습니다. 현재 글을 복사하거나 내려받은 뒤 최신 내용을 다시 열어 주세요."});
       }
-      store.save({...r,title:b.title.trim(),type:b.type,links:b.links,assets:[...new Set<string>(b.assets)]});
+      store.save({...r,title:b.title.trim(),project:b.project===undefined?r.project:b.project.trim(),type:b.type,links:b.links,assets:[...new Set<string>(b.assets)]});
       db.prepare("UPDATE workspace_notes SET folder_id=?,body=?,pinned=?,archived=? WHERE record_id=?")
         .run(b.folderId,b.body,Number(b.pinned),Number(b.archived),id);
       db.exec("COMMIT");
@@ -89,7 +90,7 @@ export function registerWorkspace(app: express.Express, store: Store) {
 export function validWorkspaceBackup(value: any, recordIds: Set<string>): boolean {
   if (value === undefined) return true;
   if (!value || !Array.isArray(value.folders) || value.folders.length > 1000 ||
-      !Array.isArray(value.notes) || value.notes.length > 1000) return false;
+    !Array.isArray(value.notes) || value.notes.length > 10000) return false;
   const id = (v: any) => typeof v === "string" && /^[a-zA-Z0-9_-]{1,128}$/.test(v);
   if (value.folders.some((f:any)=>!f || !id(f.id) || typeof f.name!=="string" || !f.name.trim() || f.name.length>80) ||
       new Set(value.folders.map((f:any)=>f.id)).size!==value.folders.length ||

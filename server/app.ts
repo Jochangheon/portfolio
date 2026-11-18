@@ -6,6 +6,7 @@ import AdmZip from "adm-zip";
 import { blank, type RecordData } from "../src/model.ts";
 import type { Store } from "./store.ts";
 import { hashPassword, verifyPassword } from "./password.ts";
+import { validCaptureBackup, restoreCaptures } from "./capture-meta.ts";
 import { publicRecord } from "../src/projection.ts";
 import type { VersionReference } from "../src/model.ts";
 import { atlas, validRelationships, relationshipsExist } from "./atlas.ts";
@@ -574,6 +575,7 @@ export function createApp(
     const records = store.list(true);
     res.json({
       format: "portfolio-v1",
+      captures: db.prepare("SELECT * FROM codex_notes").all().map((row:any)=>({record_id:row.record_id,metadata:JSON.parse(row.metadata)})),
       workspace: {folders: db.prepare("SELECT * FROM workspace_folders").all(), notes: db.prepare("SELECT * FROM workspace_notes").all()},
       records,
       versions: db.prepare("SELECT * FROM versions").all(),
@@ -617,13 +619,15 @@ export function createApp(
     }
     if (
       !Array.isArray(records) ||
-      records.length > 100 ||
+      records.length > 10000 ||
       records.some((r) => !valid(r)) ||
       new Set(records.map((r) => r.id)).size !== records.length
     )
       return res
         .status(400)
         .json({ error: "올바른 기록 내보내기 파일이 아닙니다." });
+    if (!validCaptureBackup(req.body.captures,new Set<string>(records.map(r=>r.id))))
+      return res.status(400).json({error:"Codex 작업 연결 정보가 올바르지 않습니다."});
     if (!validWorkspaceBackup(req.body.workspace, new Set<string>(records.map(r=>r.id))))
       return res.status(400).json({error:"작업 공간의 폴더 또는 메모 형식이 올바르지 않습니다."});
     const assets = req.body.assets || [],
@@ -712,6 +716,7 @@ export function createApp(
         }),
       );
       restoreWorkspace(store,req.body.workspace,recordMap);
+      restoreCaptures(store,req.body.captures,recordMap);
       for (const v of versions) {
         const id = recordMap.get(v.record_id)!;
         db.prepare("INSERT INTO versions VALUES(?,?,?,?,?,?)").run(

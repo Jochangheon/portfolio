@@ -16,6 +16,10 @@ GUIDANCE="""The user requested private archiving of all their Codex work to thei
 The global portfolio-record skill provides capture, queue status, and readable summaries.
 Use that skill for capture failures, missing history, or requests to organize work.
 Automatic capture is configured through Codex notify; do not create duplicate manual records for every turn.
+Saved records must read: 질문, 상세내용 (the assistant answer), 정리 (key results and remaining work).
+Before finishing a substantive task, use portfolio-record's prepare command with a concise question and recap from the actual task context; the completion notification attaches the final answer. Preparation alone is not confirmed server storage.
+Group work by project; delegated agents remain subordinate to the actual parent task.
+Subagents perform only their assigned scope and report results to the parent; do not duplicate inherited parent history or recapture all chats.
 Never archive hidden reasoning, tool outputs, credentials, or raw project files. Never publish automatically.
 A later request to exclude a chat, stop capture, or delete records overrides this standing request.
 """

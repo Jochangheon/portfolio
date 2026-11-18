@@ -121,3 +121,6 @@
 
 .workspace-mobile-toggle {display:none;}
 @media(max-width:760px){.workspace-mobile-toggle{display:inline-block;margin:0 0 0 12px;font-size:12px;padding:7px 10px;}.workspace-navigation[data-collapsed="true"]{display:none;}}
+/* Structured Codex notes keep their context readable without loading the graph page. */
+.capture-context{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin:16px 0;padding:12px 16px;background:#f0f6f3;border-radius:12px;font-size:13px}.capture-context span{color:#63786d}.capture-context a{margin-left:auto}.note-markdown h2{border-top:1px solid #e5ebe7;padding-top:28px;margin-top:32px;font-size:22px}.note-markdown h2:first-child{border:0;margin-top:0}.note-markdown p,.note-markdown li{line-height:1.9}.note-properties input{max-width:240px}
+@media(max-width:800px){.capture-context a{margin-left:0}}
