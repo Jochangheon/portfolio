@@ -761,3 +761,9 @@ header nav a[aria-current] {color:#284e39; font-weight:750; text-decoration:unde
 .ai-section-nav {padding:14px 0; flex-wrap:wrap; border-bottom:1px solid #d7ded4; gap:12px 24px;}
 .ai-section-nav a[aria-current] {font-weight:700; text-decoration:underline;}
 .site-footer a {color:#53675a;}
+
+.workspace-invite {border:1px solid #d3dfd2;background:#f0f5e9;border-radius:8px;padding:22px 26px;display:flex;justify-content:space-between;gap:20px;align-items:center;}
+.workspace-invite h2 {font-size:21px;margin:0 0 7px;}
+.workspace-invite p {font-size:14px;margin:0;color:#617260;}
+.workspace-invite a {font-size:14px;white-space:nowrap;font-weight:700;}
+@media(max-width:760px){.workspace-invite{flex-direction:column;align-items:start;}}

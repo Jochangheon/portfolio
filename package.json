@@ -16,6 +16,7 @@
     "test:frontend": "node --import tsx tests/frontend.browser.ts",
     "preview": "npm run build:preview && vite preview --config vite.preview.config.ts --host 127.0.0.1 --port 4173 --strictPort",
     "build:site": "npm run build:preview && node scripts/export-site.mjs",
+    "test:workspace": "node --import tsx tests/workspace.browser.ts",
     "test:atlas": "node --import tsx tests/atlas.browser.ts"
   },
   "dependencies": {

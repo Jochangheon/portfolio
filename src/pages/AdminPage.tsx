@@ -27,6 +27,8 @@ export default function Admin({recordId, mode}: {recordId?: string; mode: "index
   const [versions, setVersions] = useState<any[]>([]);
   const [analysis, setAnalysis] = useState<any>();
   const [profile, setProfile] = useState<any>();
+  const [privateNote, setPrivateNote] = useState("");
+  useEffect(()=>{if(session?.admin && recordId) api("/admin/workspace/pages/"+recordId).then(data=>setPrivateNote(data.note.body)).catch(e=>setMsg(e.message));},[session,recordId]);
   const [assetInfo, setAssetInfo] = useState<any[]>([]);
   useEffect(() => {
     if (session?.admin)
@@ -103,7 +105,8 @@ export default function Admin({recordId, mode}: {recordId?: string; mode: "index
       <div className="section-title">
         <div>
           <span className="eyebrow">나만 쓰는 공간</span>
-          <h1>내 글 관리</h1>
+          <h1>{mode==="index"?"AI 연결·백업·설정":"포트폴리오 글 정리"}</h1>
+          <a href={recordId?"/workspace/pages/"+recordId:"/workspace"}>← 내 작업 공간으로</a>
         </div>
         <button
           onClick={() =>
@@ -157,6 +160,7 @@ export default function Admin({recordId, mode}: {recordId?: string; mode: "index
           </label>
         </aside>
         {mode === "index" ? <section className="panel"><h2>한 가지 작업부터 소개해 보세요.</h2><p>무엇을 만들었는지 적고 사진이나 파일을 붙여 보세요. 저장한 글은 나만 볼 수 있습니다. 마지막에 확인하고 공개하면 다른 사람도 읽을 수 있어요.</p><p>이미 공개한 글을 고쳐도, 다시 공개하기 전까지 방문자에게는 원래 글이 보입니다.</p><a className="button primary" href="/admin/records/new">새 글 쓰기 →</a></section> : <div className="editor">
+          {privateNote&&<details className="panel"><summary>내 작업 메모 참고하기</summary><pre>{privateNote}</pre><button onClick={()=>{change("design",r.design?r.design+"\n\n"+privateNote:privateNote);setMsg("메모를 작업 과정에 붙였습니다. 공개 전에 내용을 다듬어 주세요.");}}>작업 과정에 붙이기</button></details>}
           <nav className="steps" aria-label="등록 단계">
             {["이름과 소개", "사진·파일", "만드는 방법", "작업 이야기", "공개할 내용", "마지막 확인"].map(
               (s, i) => (

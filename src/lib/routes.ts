@@ -11,6 +11,8 @@ export const editorPath = (id: string, preview = false) =>
   "/admin/records/" + encodeURIComponent(id) + (preview ? "/preview" : "/edit");
 export type Route =
   | { page: "home" | "ai" | "career" | "goldenplanet" | "projects" | "approach" | "example" | "not-found" }
+  | { page: "workspace"; id?: string; folderId?: string }
+  | { page: "settings" }
   | { page: "project"; project: Project }
   | { page: "atlas"; admin: boolean }
   | { page: "records"; category: string }
@@ -32,6 +34,10 @@ export function matchRoute(path: string): Route {
   if (path === "/examples/workflow") return { page: "example" };
   const category = categories.find((x) => x.path === path);
   if (category) return { page: "records", category: category.label };
+  if (path === "/workspace") return { page: "workspace" };
+  if (path === "/admin/settings") return { page: "settings" };
+  const workspace = path.match(/^\/workspace\/(pages|folders)\/([a-zA-Z0-9_-]{1,128})$/);
+  if (workspace) return workspace[1] === "pages" ? {page:"workspace",id:workspace[2]} : {page:"workspace",folderId:workspace[2]};
   if (path === "/admin") return { page: "admin", mode: "index" };
   if (path === "/admin/records/new") return { page: "admin", mode: "new" };
   const detail = path.match(/^\/records\/([a-zA-Z0-9_-]{1,128})$/);

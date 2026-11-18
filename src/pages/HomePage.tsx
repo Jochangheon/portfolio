@@ -14,6 +14,7 @@ export default function HomePage({records,profile}:{records:any[];profile:any}){
    <ol><li><strong>무엇을 만들었는지</strong><span>완성한 것과 쓰는 방법</span></li><li><strong>왜 필요했는지</strong><span>해결하고 싶었던 불편함</span></li><li><strong>내가 무엇을 했는지</strong><span>내 선택과 AI가 도와준 부분</span></li></ol>
   </aside>
  </section>
+ <aside className="workspace-invite"><div><h2>내 AI 작업을 차곡차곡 모으는 곳</h2><p>대화, 메모, 만든 파일을 저장하고 다시 꺼내 보세요.</p></div><a href="/workspace">내 작업 공간 열기 →</a></aside>
  <section className="work-showcase"><div className="section-title"><div><span className="eyebrow">직접 만든 것부터 살펴보세요</span><h2>최근에 만든 것과 배운 것</h2></div>{works.length>0&&<a href="/records">모두 보기 →</a>}</div>
  {works.length?<RecordCards records={works.slice(-3).reverse()}/>:<div className="empty plain-empty"><h3>공개할 작업을 정리하고 있어요.</h3><p>완성한 모습과 만드는 과정을 함께 볼 수 있도록 준비하고 있습니다.</p></div>}
  </section>

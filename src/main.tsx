@@ -7,6 +7,7 @@ import { PersonalHome, CareerPage, ProjectsPage, ProjectPage } from "./pages/Por
 import "./style.css";
 
 const GoldenplanetPage = lazy(() => import("./pages/GoldenplanetPage"));
+const WorkspacePage = lazy(() => import("./pages/WorkspacePage"));
 const AtlasPage = lazy(() => import("./pages/AtlasPage"));
 const AIHome = lazy(() => import("./pages/HomePage"));
 const RecordsPage = lazy(() => import("./pages/RecordsPage"));
@@ -42,7 +43,9 @@ function CurrentPage() {
     case "project": return <ProjectPage project={route.project}/>;
     case "ai":
     case "records": return <AICollection/>;
-    case "admin": return standalone ? <p>서버 연결이 필요한 관리자 페이지입니다.</p> : <AdminPage recordId={route.id} mode={route.mode}/>;
+    case "workspace": return standalone ? <p>로그인 후 기록을 저장할 수 있는 공간입니다.</p> : <WorkspacePage id={route.id} folderId={route.folderId}/>;
+    case "settings": return <AdminPage mode="index"/>;
+    case "admin": return standalone ? <p>서버 연결이 필요한 관리자 페이지입니다.</p> : route.mode==="index" ? <WorkspacePage/> : <AdminPage recordId={route.id} mode={route.mode}/>;
     case "atlas": return <AtlasPage admin={route.admin}/>;
     case "detail": return <RecordPage id={route.id} isExample={false}/>;
     case "example": return <RecordPage isExample/>;
@@ -53,7 +56,7 @@ function CurrentPage() {
 
 const titles = {
   home: "조창헌 포트폴리오", career: "경력과 학력", goldenplanet: "골든플래닛 고객사별 프로젝트", projects: "프로젝트", ai: "AI 작업",
-  admin: "내 글 관리", approach: "AI 작업 소개", atlas: "작업 연결 보기", detail: "AI 작업",
+  workspace: "내 작업 공간", settings: "AI 연결·백업·설정", admin: "내 작업 공간", approach: "AI 작업 소개", atlas: "작업 연결 보기", detail: "AI 작업",
   example: "AI 작업 예시", "not-found": "페이지를 찾을 수 없습니다"
 };
 
@@ -84,7 +87,7 @@ function App() {
         <a href="/records" aria-current={route.page === "records" ? "page" : undefined}>작업 모아보기</a>
         <a href="/atlas" aria-current={route.page === "atlas" && !route.admin ? "page" : undefined}>작업 연결 보기</a>
         <a href="/approach" aria-current={route.page === "approach" ? "page" : undefined}>AI 작업 소개</a>
-        {!standalone && <a className="admin-link" href="/admin">내 글 관리 ↗</a>}
+        {!standalone && <a className="admin-link" href="/workspace">내 작업 공간 ↗</a>}
       </nav>}
       <Suspense fallback={<p role="status">페이지를 불러오는 중…</p>}><CurrentPage/></Suspense>
     </main>

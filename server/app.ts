@@ -10,6 +10,7 @@ import { publicRecord } from "../src/projection.ts";
 import type { VersionReference } from "../src/model.ts";
 import { atlas, validRelationships, relationshipsExist } from "./atlas.ts";
 import { registerIngest } from "./ingest.ts";
+import { registerWorkspace, noteFor, validWorkspaceBackup, restoreWorkspace } from "./workspace.ts";
 const MAX = 10 * 1024 * 1024;
 const textExt = new Set([
   ".md",
@@ -274,6 +275,7 @@ export function createApp(
   app.get("/api/atlas",(_req,res)=>res.json(atlas(store)));
   app.get("/api/admin/atlas",(_req,res)=>res.json(atlas(store,true)));
   app.use(express.json({ limit: "64mb" }));
+  registerWorkspace(app, store);
   app.post("/api/admin/password",(req,res)=>{
     const current=passwordHash();
     if(!current || !verifyPassword(req.body?.currentPassword,current))
@@ -359,12 +361,13 @@ export function createApp(
   app.get("/api/admin/assets", (_req, res) =>
     res.json(db.prepare("SELECT id,name,mime,size FROM assets").all()),
   );
-  app.get("/api/admin/records", (_req, res) => res.json(store.list(true)));
+  app.get("/api/admin/records", (_req, res) => res.json(store.list(true).map(r=>({...r,_workspaceVersion:noteFor(store,r.id)?.version}))));
   app.get("/api/admin/preview/:id", (req,res)=>{
     const r=store.get(req.params.id,true);
     res.status(r?200:404).json(r?present(r):{error:"기록을 찾을 수 없습니다."});
   });
   app.post("/api/admin/records", (req, res) => {
+    const workspaceVersion = req.body?._workspaceVersion;
     if (!valid(req.body))
       return res.status(400).json({ error: "기록 필드와 관계를 확인하세요." });
     if (
@@ -378,9 +381,12 @@ export function createApp(
       return res.status(400).json({error:"연결한 게시 버전이 존재하지 않습니다."});
     if (!confirmedRuns(req.body))
       return res.status(400).json({error:"실행 기록마다 실제 사용한 스킬·하네스의 게시 버전을 연결하세요."});
+    if (req.body.id && workspaceVersion !== undefined && workspaceVersion !== noteFor(store,req.body.id)?.version)
+      return res.status(409).json({error:"다른 화면에서 내용을 수정했습니다. 작성 중인 글을 복사한 뒤 최신 기록을 다시 열어 주세요."});
     const record = Object.fromEntries(Object.keys(blank()).map(k=>[k,req.body[k] ?? (blank() as any)[k]])) as RecordData;
     record.id ||= randomUUID();
-    res.json(store.save(record));
+    const saved = store.save(record);
+    res.json({...saved,_workspaceVersion:noteFor(store,saved.id)?.version});
   });
   app.get("/api/admin/versions/:id", (req, res) =>
     res.json(
@@ -568,6 +574,7 @@ export function createApp(
     const records = store.list(true);
     res.json({
       format: "portfolio-v1",
+      workspace: {folders: db.prepare("SELECT * FROM workspace_folders").all(), notes: db.prepare("SELECT * FROM workspace_notes").all()},
       records,
       versions: db.prepare("SELECT * FROM versions").all(),
       assets: db
@@ -617,6 +624,8 @@ export function createApp(
       return res
         .status(400)
         .json({ error: "올바른 기록 내보내기 파일이 아닙니다." });
+    if (!validWorkspaceBackup(req.body.workspace, new Set<string>(records.map(r=>r.id))))
+      return res.status(400).json({error:"작업 공간의 폴더 또는 메모 형식이 올바르지 않습니다."});
     const assets = req.body.assets || [],
       versions = req.body.versions || [];
     if (
@@ -702,6 +711,7 @@ export function createApp(
           reason: "가져오기 · 비공개 초안",
         }),
       );
+      restoreWorkspace(store,req.body.workspace,recordMap);
       for (const v of versions) {
         const id = recordMap.get(v.record_id)!;
         db.prepare("INSERT INTO versions VALUES(?,?,?,?,?,?)").run(

@@ -23,4 +23,5 @@ jobs:
       - run: npm run test:browser
       - run: npm run test:frontend
       - run: npm run test:atlas
+      - run: npm run test:workspace
       - run: python3 skills/portfolio-record/scripts/test_portfolio.py
