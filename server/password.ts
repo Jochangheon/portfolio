@@ -4,7 +4,8 @@ export function hashPassword(password: string) {
  return salt+":"+scryptSync(password,salt,64).toString("hex");
 }
 export function verifyPassword(password: unknown, encoded: string) {
- if(typeof password!=="string" || password.length<12 || password.length>256) return false;
+ // Check the stored password; creation policy belongs to the password-setting endpoint.
+ if(typeof password!=="string" || password.length===0 || password.length>256) return false;
  if(!/^[a-f0-9]{32}:[a-f0-9]{128}$/.test(encoded))return false;
  const [salt,hash]=encoded.split(":");
  return timingSafeEqual(scryptSync(password,salt,64),Buffer.from(hash,"hex"));

@@ -82,7 +82,7 @@ export default function Admin({recordId, mode}: {recordId?: string; mode: "index
           로그인하면 나만 보는 글을 저장하고, 준비된 글만 다른 사람에게 공개할 수 있어요.
         </p>
         {session.passwordConfigured && <form onSubmit={e=>{e.preventDefault();perform(async()=>{await api("/login","POST",{password});setPassword("");location.reload();});}}>
-          <label>관리자 비밀번호<input type="password" autoComplete="current-password" required minLength={12} maxLength={256} value={password} onChange={e=>setPassword(e.target.value)}/></label>
+          <label>관리자 비밀번호<input type="password" autoComplete="current-password" required minLength={1} maxLength={256} value={password} onChange={e=>setPassword(e.target.value)}/></label>
           <button className="primary" disabled={busy}>로그인</button>
         </form>}
         {msg && <p role="alert">{msg}</p>}
