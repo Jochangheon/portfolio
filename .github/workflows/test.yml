@@ -25,3 +25,5 @@ jobs:
       - run: npm run test:atlas
       - run: npm run test:workspace
       - run: python3 skills/portfolio-record/scripts/test_portfolio.py
+      - run: python3 skills/portfolio-record/scripts/test_codex_capture.py
+      - run: python3 skills/portfolio-record/scripts/test_install_capture.py

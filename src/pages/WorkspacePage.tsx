@@ -42,9 +42,12 @@ export default function WorkspacePage({id,folderId}: {id?:string;folderId?:strin
   const folderLinks = folderOptions(data.folders);
   const selectedView = id ? "" : view;
   const views = [["all","모든 기록"],["pinned","즐겨찾기"],["public","공개한 작업"],["archive","보관함"]];
+  const includedFolders=new Set<string>();
+  function includeFolder(key:string) { if(includedFolders.has(key))return;includedFolders.add(key);data!.folders.filter(f=>f.parentId===key).forEach(f=>includeFolder(f.id)); }
+  if(folderId)includeFolder(folderId);
   const pages = data.pages.filter(page => {
     if (page.archived !== (selectedView==="archive")) return false;
-    if (folderId && page.folderId!==folderId) return false;
+    if (folderId && (!page.folderId || !includedFolders.has(page.folderId))) return false;
     if (selectedView==="pinned" && !page.pinned) return false;
     if (selectedView==="public" && !page.published) return false;
     return (!kind || page.type===kind) && page.searchText.includes(query.toLocaleLowerCase());

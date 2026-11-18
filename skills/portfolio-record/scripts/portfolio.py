@@ -75,7 +75,7 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):
         return None
 
-def request(site, path, payload=None):
+def request(site, path, payload=None, timeout=30):
     token = os.environ.get("PORTFOLIO_TOKEN") or credential(site)
     if not token or not TOKEN.fullmatch(token):
         raise ValueError("연결 키가 없습니다. 관리자에서 발급한 키로 configure를 실행하세요.")
@@ -83,7 +83,7 @@ def request(site, path, payload=None):
     req = urllib.request.Request(site + "/api/ingest/" + path, data=body,
         headers={"Authorization":"Bearer "+token,"Content-Type":"application/json","Accept":"application/json"})
     try:
-        with urllib.request.build_opener(NoRedirect()).open(req,timeout=30) as response:
+        with urllib.request.build_opener(NoRedirect()).open(req,timeout=timeout) as response:
             return json.loads(response.read(3*1024*1024))
     except urllib.error.HTTPError as e:
         messages={400:"입력 형식이나 연결 대상·버전을 확인하세요.",401:"연결 키가 없거나 만료·폐기되었습니다.",409:"사이트에서 직접 수정한 초안과 충돌합니다. 기존 초안을 사이트에서 이어서 편집하세요.",413:"묶음 크기가 2MB를 넘었습니다."}

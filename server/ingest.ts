@@ -2,6 +2,7 @@ import express from "express";
 import { randomBytes, randomUUID, createHash } from "node:crypto";
 import type { Store } from "./store.ts";
 import { blank, type RecordData } from "../src/model.ts";
+import { registerCodexCapture } from "./codex-capture.ts";
 import { relationshipsExist } from "./atlas.ts";
 const hash=(x:string)=>createHash("sha256").update(x).digest("hex");
 const canonical=(v:any):string=>v===null||typeof v!=="object"?JSON.stringify(v):Array.isArray(v)?"["+v.map(canonical).join(",")+"]":"{"+Object.keys(v).sort().map(k=>JSON.stringify(k)+":"+canonical(v[k])).join(",")+"}";
@@ -17,6 +18,7 @@ export function registerIngest(app:express.Express,store:Store,valid:(r:any)=>r 
   db.prepare("UPDATE integration_tokens SET last_used=? WHERE id=?").run(Date.now(),row.id);next();
  });
  router.use(express.json({limit:"2mb"}));
+ registerCodexCapture(router,store);
  router.get("/catalog",(_req,res)=>res.json(store.list(true).map((r:any)=>{
   const source:any=db.prepare("SELECT source_key FROM ingestions WHERE record_id=?").get(r.id);
   return {id:r.id,title:r.title,type:r.type,version:r.revision,sourceKey:source?.source_key};
